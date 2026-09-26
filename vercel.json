@@ -81,6 +81,10 @@
   ],
   "crons": [
     {
+      "path": "/api/orchestrator-run",
+      "schedule": "0 7 * * *"
+    },
+    {
       "path": "/api/report-daily",
       "schedule": "0 18 * * *"
     }
