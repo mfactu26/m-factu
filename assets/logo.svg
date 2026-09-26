@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<defs><linearGradient id="g" x1="0" x2="1"><stop stop-color="#f7c65c"/><stop offset="1" stop-color="#b97a08"/></linearGradient></defs>
+<rect width="512" height="512" rx="256" fill="#fff"/>
+<circle cx="256" cy="256" r="234" fill="#111"/>
+<circle cx="256" cy="256" r="208" fill="#fff"/>
+<text x="256" y="90" text-anchor="middle" font-family="Arial,sans-serif" font-size="42" font-weight="700" letter-spacing="5">M FACTU</text>
+<circle cx="256" cy="266" r="125" fill="#f8f8f8" stroke="#111" stroke-width="14"/>
+<path d="M256 141 L278 241 L365 195 L305 278 L390 322 L291 305 L256 405 L231 305 L132 322 L207 278 L147 195 L234 241 Z" fill="#c8c8c8" stroke="#333" stroke-width="4"/>
+<circle cx="256" cy="266" r="64" fill="#555" stroke="#222" stroke-width="8"/>
+<text x="256" y="282" text-anchor="middle" font-family="Arial,sans-serif" font-size="58" font-weight="900" fill="url(#g)">MF</text>
+<path id="topArc" d="M155 225 A112 112 0 0 1 357 225" fill="none"/>
+<text font-family="Arial,sans-serif" font-size="27" font-weight="800" fill="#111"><textPath href="#topArc" startOffset="50%" text-anchor="middle">FACTURATION</textPath></text>
+<text x="256" y="385" text-anchor="middle" font-family="Arial,sans-serif" font-size="33" font-weight="900">TAXI</text>
+<text x="256" y="452" text-anchor="middle" font-family="Arial,sans-serif" font-size="23" font-weight="700">07 88 74 68 69</text>
+</svg>
