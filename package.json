@@ -1,0 +1,9 @@
+{
+  "name": "m-factu",
+  "private": true,
+  "version": "0.2.0",
+  "description": "M FactU — facturation pour taxis conventionnés",
+  "dependencies": {
+    "@neondatabase/serverless": "^1.0.2"
+  }
+}
