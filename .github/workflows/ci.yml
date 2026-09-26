@@ -77,6 +77,7 @@ jobs:
           node --check lib/auth.cjs
           node --check lib/db.cjs
           node --check sw.js
+          node -e "const s=require('fs').readFileSync('assets/app.js','utf8'); if(!s.includes('bindCardNavigation')) throw new Error('dashboard card navigation missing'); if(!s.includes('data-href')) throw new Error('clickable row destinations missing')"
           node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))"
