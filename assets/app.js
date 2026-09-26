@@ -137,13 +137,36 @@ function renderOrchestrator(){
 
 function leadButtons(p){
   if(p.status==='Client')return '<span class="pill p-client">Actif</span>';
-  if(p.status==='Nouveau')return `<button class="mini primary" onclick="advanceProspect('${p.id}','Contacté')">Contacter</button>`;
+  if(p.status==='Nouveau')return p.email
+    ? `<button class="mini primary" onclick="contactProspect('${p.id}')">Contacter</button>`
+    : '<span class="pill p-wait">Contact à enrichir</span>';
   if(p.status==='Contacté')return `<button class="mini gold" onclick="advanceProspect('${p.id}','Intéressé')">Réponse +</button><button class="mini" onclick="advanceProspect('${p.id}','À relancer')">Relancer</button>`;
   if(p.status==='À relancer')return `<button class="mini primary" onclick="advanceProspect('${p.id}','Intéressé')">Intéressé</button>`;
   if(p.status==='Intéressé')return `<button class="mini primary" onclick="sendProposal('${p.id}')">Envoyer proposition</button>`;
   if(p.status==='Proposition envoyée')return `<button class="mini gold" onclick="validateProposal('${p.id}')">Simuler signature</button>`;
   return '';
 }
+
+window.contactProspect=async(id)=>{
+  const p=state.prospects.find(x=>x.id===id);if(!p)return;
+  if(!p.email){toast('Adresse professionnelle à enrichir avant envoi');return}
+  try{
+    const r=await fetch('/api/prospect-contact',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({prospectId:id})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.error||'CONTACT_FAILED');
+    p.status='Contacté';
+    p.notes='Email M FactU envoyé • désinscription disponible';
+    state.orchestrator.contacted++;
+    state.orchestrator.today.contacted++;
+    save();renderOrchestrator();renderAdmin();toast('Email envoyé au prospect');
+  }catch(e){
+    toast(e.message==='EMAIL_MISSING'?'Adresse email manquante':'Envoi impossible : '+e.message);
+  }
+};
 
 window.advanceProspect=(id,status)=>{
   const p=state.prospects.find(x=>x.id===id);if(!p)return;
@@ -233,15 +256,42 @@ function bindReporting(){
   map.forEach(([id,key])=>{const el=document.getElementById(id);if(el)el.onchange=()=>{state.reporting[key]=el.checked;save();toast('Préférence de rapport enregistrée')}});
 }
 
-function simulateCampaign(){
+async function simulateCampaign(){
   state.orchestrator.active=true;
-  state.orchestrator.found+=25;state.orchestrator.contacted+=12;
-  state.orchestrator.today.searched+=25;state.orchestrator.today.qualified+=18;state.orchestrator.today.contacted+=12;state.orchestrator.today.replies+=3;
-  const names=['Taxi Médical Provence','Taxi Rhône Assistance','Taxi Santé Vaucluse'];
-  names.forEach((name,i)=>state.prospects.unshift({id:'P-'+Date.now()+'-'+i,company:name,city:['Orange','Avignon','Carpentras'][i],email:'contact@'+name.toLowerCase().replace(/[^a-z]/g,'')+'.fr',status:'Nouveau',score:82+i*4,notes:'Trouvé par l’orchestrateur'}));
-  save();renderOrchestrator();renderAdmin();toast('Campagne test : nouveaux prospects qualifiés ajoutés');
+  toast('Recherche réelle de taxis en cours…');
+  try{
+    const r=await fetch('/api/prospects-discover',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({target:50})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.error||'PROSPECT_SEARCH_FAILED');
+    state.prospects=Array.isArray(data.prospects)?data.prospects:state.prospects;
+    state.orchestrator.found=state.prospects.length;
+    state.orchestrator.today.searched+=Number(data.searched||0);
+    state.orchestrator.today.qualified+=Number((data.prospects||[]).length);
+    save();renderOrchestrator();renderAdmin();
+    toast(`${data.searched||0} taxis recherchés • ${data.created||0} nouveaux prospects enregistrés`);
+  }catch(e){
+    toast('Recherche impossible : '+e.message);
+  }
 }
 window.simulateCampaign=simulateCampaign;
+
+async function refreshRealProspects(){
+  try{
+    const r=await fetch('/api/prospects-list?limit=100',{cache:'no-store'});
+    if(!r.ok)return;
+    const data=await r.json();
+    if(Array.isArray(data.prospects)&&data.prospects.length){
+      state.prospects=data.prospects;
+      state.orchestrator.found=data.prospects.length;
+      state.orchestrator.contacted=data.prospects.filter(p=>p.status==='Contacté').length;
+      save();renderOrchestrator();renderAdmin();
+    }
+  }catch{}
+}
 
 function markNextDossier(){
   let d=state.dossiers.find(x=>x.status==='À traiter');if(!d)d=state.dossiers.find(x=>x.status==='À télétransmettre');
@@ -271,6 +321,6 @@ async function refreshIntegrationStatus(){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  navMobile();renderAdmin();renderOrchestrator();renderClient();renderDossier();renderProposal();bindForms();bindReporting();refreshIntegrationStatus();
+  navMobile();renderAdmin();renderOrchestrator();renderClient();renderDossier();renderProposal();bindForms();bindReporting();refreshIntegrationStatus();refreshRealProspects();
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
 });
