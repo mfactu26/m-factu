@@ -1,0 +1,19 @@
+{
+  "name": "M FactU Admin",
+  "short_name": "M FactU",
+  "description": "Tableau de bord propriétaire M FactU",
+  "start_url": "/admin",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#111111",
+  "icons": [
+    {
+      "src": "/assets/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
