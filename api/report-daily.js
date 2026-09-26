@@ -40,7 +40,7 @@ module.exports=async function handler(req,res){
   const counts=Object.fromEntries(rows.map(r=>[r.event_type,Number(r.count)]));
   const clients=await sql`select count(*)::int as count from mfactu_organizations where status='active'`;
   const summary={
-    searched:counts.prospect_searched||0,found:counts.prospect_found||0,qualified:counts.prospect_qualified||0,
+    searched:counts.prospect_searched||0,found:counts.prospect_found||0,enriched:counts.prospect_enriched||0,qualified:counts.prospect_qualified||0,
     contacted:counts.contact_sent||0,replies:counts.reply_received||0,hot:counts.prospect_interested||0,
     proposals:counts.proposal_sent||0,signed:counts.contract_signed||0,clients:Number(clients[0]?.count||0)
   };
