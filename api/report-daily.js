@@ -2,17 +2,33 @@ const { getSession } = require("../lib/auth.cjs");
 const { getSql } = require("../lib/db.cjs");
 const { sendEmail } = require("../lib/email.cjs");
 
-function authorized(req){
+function accessMode(req){
+  const s=getSession(req);
+  if(s&&s.role==="owner") return "owner";
   const auth=String(req.headers.authorization||"");
-  if(process.env.CRON_SECRET && auth==="Bearer "+process.env.CRON_SECRET) return true;
-  const s=getSession(req); return Boolean(s&&s.role==="owner");
+  if(process.env.CRON_SECRET&&auth==="Bearer "+process.env.CRON_SECRET) return "cron";
+  const ua=String(req.headers["user-agent"]||"");
+  if(!process.env.CRON_SECRET&&/^vercel-cron\/1\.0/i.test(ua)) return "cron";
+  return null;
 }
 
 module.exports=async function handler(req,res){
   if(!["GET","POST"].includes(req.method)) return res.status(405).end();
-  if(!authorized(req)) return res.status(403).json({ok:false,error:"OWNER_OR_CRON_ONLY"});
+  const mode=accessMode(req);
+  if(!mode) return res.status(403).json({ok:false,error:"OWNER_OR_CRON_ONLY"});
   const sql=getSql(); if(!sql) return res.status(503).json({ok:false,error:"DATABASE_NOT_CONFIGURED"});
   if(!process.env.REPORT_EMAIL||!process.env.RESEND_API_KEY||!process.env.EMAIL_FROM) return res.status(503).json({ok:false,error:"EMAIL_NOT_CONFIGURED"});
+
+  if(mode==="cron"){
+    const prior=await sql`
+      select id,provider_message_id from mfactu_report_runs
+      where report_type='daily-commercial'
+        and status='sent'
+        and created_at>=date_trunc('day',now())
+      limit 1
+    `;
+    if(prior[0]) return res.status(200).json({ok:true,alreadySent:true,messageId:prior[0].provider_message_id||null});
+  }
 
   const end=new Date(); const start=new Date(end.getTime()-24*60*60*1000);
   const rows=await sql`
@@ -40,7 +56,7 @@ Propositions envoyées : ${summary.proposals}
 Contrats signés : ${summary.signed}
 Clients actifs : ${summary.clients} / 50
 
-Les cas nécessitant une intervention propriétaire doivent apparaître séparément dans le tableau de bord.`;
+Les cas nécessitant une intervention propriétaire apparaissent séparément dans le tableau de bord.`;
   const sent=await sendEmail({to:process.env.REPORT_EMAIL,subject:"M FactU — Rapport commercial quotidien",text});
   await sql`insert into mfactu_report_runs(period_start,period_end,recipient,provider_message_id,status,summary) values(${start.toISOString()},${end.toISOString()},${process.env.REPORT_EMAIL},${sent.id||null},'sent',${JSON.stringify(summary)}::jsonb)`;
   return res.status(200).json({ok:true,summary,messageId:sent.id||null});
