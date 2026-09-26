@@ -87,3 +87,61 @@ create table if not exists mfactu_audit_events (
 
 comment on column mfactu_dossiers.patient_reference is
   'Operational pseudonymous reference only. Do not store patient name, diagnosis, prescription details, or documents here until approved health-data hosting is enabled.';
+
+
+-- Billing / Stripe integration
+alter table mfactu_organizations
+  add column if not exists stripe_customer_id text,
+  add column if not exists billing_email text,
+  add column if not exists billing_collection_method text not null default 'charge_automatically'
+    check (billing_collection_method in ('charge_automatically','send_invoice'));
+
+create unique index if not exists mfactu_organizations_stripe_customer_unique
+  on mfactu_organizations (stripe_customer_id)
+  where stripe_customer_id is not null;
+
+create table if not exists mfactu_billing_periods (
+  id uuid primary key default gen_random_uuid(),
+  organization_id uuid not null references mfactu_organizations(id) on delete restrict,
+  period_start date not null,
+  period_end date not null,
+  teletransmitted_turnover_cents bigint not null check (teletransmitted_turnover_cents >= 0),
+  fee_basis_points integer not null default 350 check (fee_basis_points = 350),
+  fee_cents bigint not null check (fee_cents >= 0),
+  stripe_invoice_id text,
+  stripe_invoice_status text,
+  hosted_invoice_url text,
+  paid_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  check (period_end >= period_start),
+  unique (organization_id, period_start, period_end)
+);
+
+create unique index if not exists mfactu_billing_periods_stripe_invoice_unique
+  on mfactu_billing_periods (stripe_invoice_id)
+  where stripe_invoice_id is not null;
+
+create table if not exists mfactu_commercial_events (
+  id bigserial primary key,
+  event_type text not null,
+  prospect_id uuid references mfactu_prospects(id) on delete set null,
+  organization_id uuid references mfactu_organizations(id) on delete set null,
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists mfactu_commercial_events_created_idx
+  on mfactu_commercial_events (created_at desc, event_type);
+
+create table if not exists mfactu_report_runs (
+  id bigserial primary key,
+  report_type text not null default 'daily-commercial',
+  period_start timestamptz not null,
+  period_end timestamptz not null,
+  recipient text,
+  provider_message_id text,
+  status text not null default 'pending',
+  summary jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
