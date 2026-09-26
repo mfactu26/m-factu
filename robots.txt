@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /admin
+Disallow: /orchestrateur
+Disallow: /espace-client
+Disallow: /dossier
+Disallow: /onboarding
+Disallow: /proposition
