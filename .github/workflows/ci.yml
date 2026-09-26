@@ -27,6 +27,8 @@ jobs:
           test -f assets/app.js
           test -f assets/styles.css
           test -f assets/logo.svg
+          test -f manifest.webmanifest
+          test -f sw.js
           test -f api/secure.js
           test -f api/auth-login.js
           test -f api/logout.js
@@ -73,6 +75,8 @@ jobs:
           node --check lib/email.cjs
           node --check lib/auth.cjs
           node --check lib/db.cjs
+          node --check sw.js
+          node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))"
 
