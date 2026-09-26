@@ -3,33 +3,86 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
-    {"source": "/admin.html", "destination": "/admin", "permanent": false},
-    {"source": "/orchestrateur.html", "destination": "/orchestrateur", "permanent": false},
-    {"source": "/espace-client.html", "destination": "/espace-client", "permanent": false},
-    {"source": "/dossier.html", "destination": "/dossier", "permanent": false},
-    {"source": "/onboarding.html", "destination": "/onboarding", "permanent": false}
+    {
+      "source": "/admin.html",
+      "destination": "/admin",
+      "permanent": false
+    },
+    {
+      "source": "/orchestrateur.html",
+      "destination": "/orchestrateur",
+      "permanent": false
+    },
+    {
+      "source": "/espace-client.html",
+      "destination": "/espace-client",
+      "permanent": false
+    },
+    {
+      "source": "/dossier.html",
+      "destination": "/dossier",
+      "permanent": false
+    },
+    {
+      "source": "/onboarding.html",
+      "destination": "/onboarding",
+      "permanent": false
+    }
   ],
   "rewrites": [
-    {"source": "/admin", "destination": "/api/secure?target=admin"},
-    {"source": "/orchestrateur", "destination": "/api/secure?target=orchestrateur"},
-    {"source": "/espace-client", "destination": "/api/secure?target=espace-client"},
-    {"source": "/dossier", "destination": "/api/secure?target=dossier"},
-    {"source": "/onboarding", "destination": "/api/secure?target=onboarding"}
+    {
+      "source": "/admin",
+      "destination": "/api/secure?target=admin"
+    },
+    {
+      "source": "/orchestrateur",
+      "destination": "/api/secure?target=orchestrateur"
+    },
+    {
+      "source": "/espace-client",
+      "destination": "/api/secure?target=espace-client"
+    },
+    {
+      "source": "/dossier",
+      "destination": "/api/secure?target=dossier"
+    },
+    {
+      "source": "/onboarding",
+      "destination": "/api/secure?target=onboarding"
+    }
   ],
   "headers": [
     {
       "source": "/(admin|orchestrateur|espace-client|dossier|onboarding)(.*)",
       "headers": [
-        {"key": "X-Robots-Tag", "value": "noindex, nofollow"},
-        {"key": "Cache-Control", "value": "private, no-store, max-age=0"},
-        {"key": "X-Frame-Options", "value": "DENY"}
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store, max-age=0"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        }
       ]
     },
     {
       "source": "/login(.*)",
       "headers": [
-        {"key": "X-Robots-Tag", "value": "noindex, nofollow"}
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
       ]
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/report-daily",
+      "schedule": "0 18 * * *"
     }
   ]
 }
