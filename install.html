@@ -28,22 +28,27 @@
       <h1>Installer M FactU Admin</h1>
       <p>Accédez directement à votre tableau de bord propriétaire depuis l’écran d’accueil de votre téléphone.</p>
       <div class="install-actions">
+        <a class="btn btn-blue" id="openChrome" href="intent://m-factu.vercel.app/install#Intent;scheme=https;package=com.android.chrome;end" hidden>Ouvrir dans Chrome pour installer</a>
         <button class="btn btn-blue" id="installBtn" hidden>Installer M FactU</button>
         <a class="btn btn-secondary" href="/admin">Ouvrir l’espace admin</a>
       </div>
       <div class="install-help" id="fallback">
-        <b>Si le bouton Installer n’apparaît pas :</b><br>
-        Dans Chrome Android, ouvrez le menu ⋮ puis choisissez <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b>.
+        <b>Installation Android :</b><br>
+        Utilisez de préférence <b>Chrome</b>, puis choisissez <b>Installer l’application</b>. Évitez « Ajouter à l’écran d’accueil » depuis Edge : Android crée alors un simple raccourci Edge au lieu d’une application M FactU séparée.
       </div>
     </section>
   </main>
 <script>
 let deferredPrompt=null;
 const btn=document.getElementById('installBtn');
+const chromeBtn=document.getElementById('openChrome');
+const isAndroid=/Android/i.test(navigator.userAgent);
+const isEdge=/EdgA|EdgiOS|Edg\//i.test(navigator.userAgent);
+if(isAndroid&&isEdge) chromeBtn.hidden=false;
 window.addEventListener('beforeinstallprompt',e=>{
   e.preventDefault();
   deferredPrompt=e;
-  btn.hidden=false;
+  if(!isEdge) btn.hidden=false;
 });
 btn.addEventListener('click',async()=>{
   if(!deferredPrompt)return;
