@@ -108,7 +108,7 @@ jobs:
             const html=fs.readFileSync(file,'utf8');
             for(const m of html.matchAll(/(?:href|src)="([^"]+)"/g)){
               const href=m[1];
-              if(/^(https?:|mailto:|tel:|#|data:|javascript:|\/)/.test(href)) continue;
+              if(/^(https?:|intent:|mailto:|tel:|#|data:|javascript:|\/)/.test(href)) continue;
               const clean=href.split('?')[0].split('#')[0];
               if(!clean) continue;
               if(!fs.existsSync(path.resolve(clean))) missing.push(file+' -> '+clean);
