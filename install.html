@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#111111">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Installer M FactU</title>
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" href="/assets/logo.svg">
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    .install-page{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f5f6f8}
+    .install-card{width:min(520px,100%);background:#fff;border:1px solid #e6e8ec;border-radius:24px;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,.08);text-align:center}
+    .install-card img{width:104px;height:104px;border-radius:24px;margin-bottom:18px}
+    .install-card h1{margin:0 0 10px;font-size:30px}
+    .install-card p{color:#697386;line-height:1.55}
+    .install-actions{display:grid;gap:12px;margin-top:22px}
+    .install-help{margin-top:18px;font-size:14px;text-align:left;background:#f7f8fa;border-radius:14px;padding:14px}
+  </style>
+</head>
+<body>
+  <main class="install-page">
+    <section class="install-card">
+      <img src="/assets/logo.svg" alt="M FactU">
+      <span class="eyebrow">APPLICATION M FACTU</span>
+      <h1>Installer M FactU Admin</h1>
+      <p>Accédez directement à votre tableau de bord propriétaire depuis l’écran d’accueil de votre téléphone.</p>
+      <div class="install-actions">
+        <button class="btn btn-blue" id="installBtn" hidden>Installer M FactU</button>
+        <a class="btn btn-secondary" href="/admin">Ouvrir l’espace admin</a>
+      </div>
+      <div class="install-help" id="fallback">
+        <b>Si le bouton Installer n’apparaît pas :</b><br>
+        Dans Chrome Android, ouvrez le menu ⋮ puis choisissez <b>Installer l’application</b> ou <b>Ajouter à l’écran d’accueil</b>.
+      </div>
+    </section>
+  </main>
+<script>
+let deferredPrompt=null;
+const btn=document.getElementById('installBtn');
+window.addEventListener('beforeinstallprompt',e=>{
+  e.preventDefault();
+  deferredPrompt=e;
+  btn.hidden=false;
+});
+btn.addEventListener('click',async()=>{
+  if(!deferredPrompt)return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt=null;
+  btn.hidden=true;
+});
+window.addEventListener('appinstalled',()=>{btn.hidden=true});
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));
+}
+</script>
+</body>
+</html>

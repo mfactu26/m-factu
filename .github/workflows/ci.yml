@@ -24,6 +24,7 @@ jobs:
           test -f contact.html
           test -f proposition.html
           test -f login.html
+          test -f install.html
           test -f assets/app.js
           test -f assets/styles.css
           test -f assets/logo.svg
