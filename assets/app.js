@@ -48,6 +48,62 @@ function contactInfo(p){
   if(p.phone)bits.push(`☎ <a href="tel:${encodeURIComponent(p.phone)}">${esc(p.phone)}</a>`);
   return bits.length?`<small class="lead-contact">${bits.join(' · ')}</small>`:'<small class="lead-contact muted">Coordonnées à enrichir</small>';
 }
+function makeNavigable(el,href){
+  if(!el||!href)return;
+  el.dataset.href=href;
+  el.classList.add('clickable-card');
+  el.setAttribute('role','link');
+  if(!el.hasAttribute('tabindex'))el.tabIndex=0;
+}
+function bindCardNavigation(){
+  const map=[
+    ['kClients','/espace-client'],
+    ['kFactu','/admin#objectif-commercial'],
+    ['kContracts','/orchestrateur#prospects'],
+    ['kTodo','/admin#dossiers']
+  ];
+  map.forEach(([id,href])=>{
+    const el=document.getElementById(id);
+    makeNavigable(el&&el.closest('.kpi'),href);
+  });
+
+  const goal=document.querySelector('.goal-card');
+  if(goal){goal.id='objectif-commercial';makeNavigable(goal,'/orchestrateur#prospects');}
+
+  const activity=document.getElementById('todayFound')?.closest('.premium-card');
+  makeNavigable(activity,'/orchestrateur');
+  document.querySelectorAll('.activity-grid>div').forEach(el=>makeNavigable(el,'/orchestrateur'));
+
+  const priority=document.getElementById('priorityList')?.closest('.premium-card');
+  makeNavigable(priority,'/orchestrateur#prospects');
+
+  const prospects=document.getElementById('prospectRows')?.closest('.premium-card');
+  makeNavigable(prospects,'/orchestrateur#prospects');
+
+  const report=document.getElementById('reportFound')?.closest('.premium-card');
+  makeNavigable(report,'/orchestrateur#reports');
+  document.querySelectorAll('.report-preview>div').forEach(el=>makeNavigable(el,'/orchestrateur#reports'));
+
+  const reportSettings=document.getElementById('dailyReportToggle')?.closest('.premium-card');
+  if(reportSettings)reportSettings.id='reports';
+
+  document.addEventListener('click',e=>{
+    const target=e.target.closest('[data-href]');
+    if(!target)return;
+    if(e.target.closest('a,button,input,select,textarea,label'))return;
+    const href=target.dataset.href;
+    if(href)location.href=href;
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key!=='Enter'&&e.key!==' ')return;
+    const target=e.target.closest('[data-href]');
+    if(!target||e.target.closest('a,button,input,select,textarea,label'))return;
+    e.preventDefault();
+    const href=target.dataset.href;
+    if(href)location.href=href;
+  });
+}
+
 function toast(msg){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t)}t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400)}
 function pill(s){let c='p-new';if(/Contact/.test(s))c='p-contact';if(/relancer|attente|traiter/i.test(s))c='p-wait';if(/Intéressé/.test(s))c='p-hot';if(/Proposition/.test(s))c='p-proposal';if(/Client|Actif|Payé|signé/i.test(s))c='p-client';if(/Rejet/.test(s))c='p-reject';if(/Télétransmis|transmettre/.test(s))c='p-transmit';return `<span class="pill ${c}">${s}</span>`}
 function navMobile(){const b=document.querySelector('.mobile-nav');if(!b)return;b.onclick=()=>{const n=document.querySelector('.nav');n.style.display=n.style.display==='flex'?'none':'flex';n.style.position='absolute';n.style.top='72px';n.style.left='0';n.style.right='0';n.style.background='#fff';n.style.padding='12px 20px';n.style.flexDirection='column';n.style.alignItems='stretch'}}
@@ -92,17 +148,17 @@ function renderAdmin(){
     const contract=contractsPending();
     const relance=state.prospects.filter(p=>p.status==='À relancer').length;
     priority.innerHTML=[
-      `<div class="priority-item priority-hot"><span class="priority-ico">★</span><div><b>Prospects chauds</b><span>Prêts à recevoir ou finaliser la proposition</span></div><strong>${hot}</strong></div>`,
-      `<div class="priority-item priority-contract"><span class="priority-ico">✍</span><div><b>Contrats à finaliser</b><span>Propositions envoyées en attente</span></div><strong>${contract}</strong></div>`,
-      `<div class="priority-item priority-relance"><span class="priority-ico">↻</span><div><b>Relances prévues</b><span>À traiter par l’orchestrateur</span></div><strong>${relance}</strong></div>`
+      `<div class="priority-item priority-hot clickable-card" data-href="/orchestrateur#prospects" role="link" tabindex="0"><span class="priority-ico">★</span><div><b>Prospects chauds</b><span>Prêts à recevoir ou finaliser la proposition</span></div><strong>${hot}</strong></div>`,
+      `<div class="priority-item priority-contract clickable-card" data-href="/orchestrateur#prospects" role="link" tabindex="0"><span class="priority-ico">✍</span><div><b>Contrats à finaliser</b><span>Propositions envoyées en attente</span></div><strong>${contract}</strong></div>`,
+      `<div class="priority-item priority-relance clickable-card" data-href="/orchestrateur#prospects" role="link" tabindex="0"><span class="priority-ico">↻</span><div><b>Relances prévues</b><span>À traiter par l’orchestrateur</span></div><strong>${relance}</strong></div>`
     ].join('');
   }
 
   const tb=document.getElementById('prospectRows');
-  if(tb)tb.innerHTML=state.prospects.slice(0,5).map(x=>`<tr><td><b>${esc(x.company)}</b><br><small>${esc(x.city)}</small><br>${contactInfo(x)}</td><td>${pill(x.status)}</td><td><b>${Number(x.score||0)}%</b></td><td><a class="mini" href="/orchestrateur#prospects">Ouvrir</a></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun prospect enregistré</td></tr>';
+  if(tb)tb.innerHTML=state.prospects.slice(0,5).map(x=>`<tr class="clickable-row" data-href="/orchestrateur#prospects" role="link" tabindex="0"><td><b>${esc(x.company)}</b><br><small>${esc(x.city)}</small><br>${contactInfo(x)}</td><td>${pill(x.status)}</td><td><b>${Number(x.score||0)}%</b></td><td><a class="mini" href="/orchestrateur#prospects">Ouvrir</a></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun prospect enregistré</td></tr>';
 
   const db=document.getElementById('dossierRows');
-  if(db)db.innerHTML=state.dossiers.slice(0,5).map(d=>`<tr><td><b>${d.id}</b></td><td>${d.client}</td><td>${pill(d.status)}</td><td>${euro(d.amount)}</td></tr>`).join('');
+  if(db)db.innerHTML=state.dossiers.slice(0,5).map(d=>`<tr class="clickable-row" data-href="/dossier?id=${encodeURIComponent(d.id)}" role="link" tabindex="0"><td><b>${esc(d.id)}</b></td><td>${esc(d.client)}</td><td>${pill(d.status)}</td><td>${euro(d.amount)}</td></tr>`).join('');
 
   setText('reportFound',t.searched);
   setText('reportProposals',t.proposals);
