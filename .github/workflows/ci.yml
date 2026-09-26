@@ -35,6 +35,11 @@ jobs:
           test -f api/billing-create.js
           test -f api/stripe-webhook.js
           test -f api/report-daily.js
+          test -f api/prospects-discover.js
+          test -f api/prospect-contact.js
+          test -f api/prospect-optout.js
+          test -f api/orchestrator-run.js
+          test -f lib/prospecting.cjs
           test -f lib/stripe.cjs
           test -f lib/email.cjs
           test -f lib/auth.cjs
@@ -59,6 +64,11 @@ jobs:
           node --check api/billing-create.js
           node --check api/stripe-webhook.js
           node --check api/report-daily.js
+          node --check api/prospects-discover.js
+          node --check api/prospect-contact.js
+          node --check api/prospect-optout.js
+          node --check api/orchestrator-run.js
+          node --check lib/prospecting.cjs
           node --check lib/stripe.cjs
           node --check lib/email.cjs
           node --check lib/auth.cjs
