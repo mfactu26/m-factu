@@ -281,7 +281,7 @@ window.simulateCampaign=simulateCampaign;
 
 async function refreshRealProspects(){
   try{
-    const r=await fetch('/api/prospects-list?limit=100',{cache:'no-store'});
+    const r=await fetch('/api/prospects-discover?limit=100',{cache:'no-store'});
     if(!r.ok)return;
     const data=await r.json();
     if(Array.isArray(data.prospects)&&data.prospects.length){
