@@ -41,6 +41,13 @@ function load(){
 let state=load();
 function save(){localStorage.setItem(KEY,JSON.stringify(state))}
 function euro(n){return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(Number(n)||0)}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function contactInfo(p){
+  const bits=[];
+  if(p.email)bits.push(`✉ <a href="mailto:${encodeURIComponent(p.email)}">${esc(p.email)}</a>`);
+  if(p.phone)bits.push(`☎ <a href="tel:${encodeURIComponent(p.phone)}">${esc(p.phone)}</a>`);
+  return bits.length?`<small class="lead-contact">${bits.join(' · ')}</small>`:'<small class="lead-contact muted">Coordonnées à enrichir</small>';
+}
 function toast(msg){let t=document.querySelector('.toast');if(!t){t=document.createElement('div');t.className='toast';document.body.appendChild(t)}t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400)}
 function pill(s){let c='p-new';if(/Contact/.test(s))c='p-contact';if(/relancer|attente|traiter/i.test(s))c='p-wait';if(/Intéressé/.test(s))c='p-hot';if(/Proposition/.test(s))c='p-proposal';if(/Client|Actif|Payé|signé/i.test(s))c='p-client';if(/Rejet/.test(s))c='p-reject';if(/Télétransmis|transmettre/.test(s))c='p-transmit';return `<span class="pill ${c}">${s}</span>`}
 function navMobile(){const b=document.querySelector('.mobile-nav');if(!b)return;b.onclick=()=>{const n=document.querySelector('.nav');n.style.display=n.style.display==='flex'?'none':'flex';n.style.position='absolute';n.style.top='72px';n.style.left='0';n.style.right='0';n.style.background='#fff';n.style.padding='12px 20px';n.style.flexDirection='column';n.style.alignItems='stretch'}}
@@ -92,7 +99,7 @@ function renderAdmin(){
   }
 
   const tb=document.getElementById('prospectRows');
-  if(tb)tb.innerHTML=hotProspects().slice(0,5).map(x=>`<tr><td><b>${x.company}</b><br><small>${x.city}</small></td><td>${pill(x.status)}</td><td><b>${x.score}%</b></td><td><a class="mini" href="/orchestrateur#prospects">Ouvrir</a></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun prospect prioritaire</td></tr>';
+  if(tb)tb.innerHTML=state.prospects.slice(0,5).map(x=>`<tr><td><b>${esc(x.company)}</b><br><small>${esc(x.city)}</small><br>${contactInfo(x)}</td><td>${pill(x.status)}</td><td><b>${Number(x.score||0)}%</b></td><td><a class="mini" href="/orchestrateur#prospects">Ouvrir</a></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun prospect enregistré</td></tr>';
 
   const db=document.getElementById('dossierRows');
   if(db)db.innerHTML=state.dossiers.slice(0,5).map(d=>`<tr><td><b>${d.id}</b></td><td>${d.client}</td><td>${pill(d.status)}</td><td>${euro(d.amount)}</td></tr>`).join('');
@@ -111,7 +118,7 @@ function renderOrchestrator(){
       const list=status==='Client'
         ? state.clients.slice(0,4).map(c=>({id:c.id,company:c.name,city:c.city,score:100,notes:'Contrat signé • Client actif',status:'Client'}))
         : state.prospects.filter(p=>p.status===status);
-      return `<section class="lane"><h4>${status}<span>${list.length}</span></h4>${list.map(p=>`<article class="lead"><b>${p.company}</b><small>${p.city} • Score ${p.score}%</small><small>${p.notes}</small><div class="lead-actions">${leadButtons(p)}</div></article>`).join('')||'<div class="empty">Aucun</div>'}</section>`;
+      return `<section class="lane"><h4>${status}<span>${list.length}</span></h4>${list.map(p=>`<article class="lead"><b>${esc(p.company)}</b><small>${esc(p.city)} • Score ${Number(p.score||0)}%</small>${contactInfo(p)}<small>${esc(p.notes)}</small><div class="lead-actions">${leadButtons(p)}</div></article>`).join('')||'<div class="empty">Aucun</div>'}</section>`;
     }).join('');
   }
   setText('orc-found',state.orchestrator.found);
@@ -318,6 +325,10 @@ async function refreshIntegrationStatus(){
     const ready=Boolean(data.emailConfigured);
     [badge,report].forEach(el=>{if(el){el.textContent=ready?'Connecté':'À connecter';el.classList.toggle('ready',ready)}});
   }catch{}
+}
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
