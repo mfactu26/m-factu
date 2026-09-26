@@ -2,7 +2,7 @@ const crypto=require("crypto");
 const { getSession } = require("../lib/auth.cjs");
 const { getSql } = require("../lib/db.cjs");
 const { sendEmail } = require("../lib/email.cjs");
-const { searchTaxiCompanies, persistProspects } = require("../lib/prospecting.cjs");
+const { searchTaxiCompanies, persistProspects, enrichPublicContacts } = require("../lib/prospecting.cjs");
 
 function accessMode(req){
   const s=getSession(req);
@@ -116,6 +116,7 @@ module.exports=async function handler(req,res){
     `;
   }
 
+  const enrichment=await enrichPublicContacts(sql,{limit:12});
   const outreach=await contactReadyProspects(sql,50);
 
   if(mode==="cron"){
@@ -125,6 +126,7 @@ module.exports=async function handler(req,res){
         searched:found.length,
         created:persisted.created,
         existing:persisted.existing,
+        enrichment,
         contacted:outreach.contacted||0,
         failed:outreach.failed||0
       })}::jsonb)
@@ -135,6 +137,7 @@ module.exports=async function handler(req,res){
     searched:found.length,
     created:persisted.created,
     existing:persisted.existing,
+    enrichment,
     contacted:outreach.contacted||0,
     contactFailed:outreach.failed||0,
     contactSkipped:outreach.skipped||null,
