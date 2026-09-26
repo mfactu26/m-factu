@@ -32,6 +32,11 @@ jobs:
           test -f api/logout.js
           test -f api/me.js
           test -f api/health.js
+          test -f api/billing-create.js
+          test -f api/stripe-webhook.js
+          test -f api/report-daily.js
+          test -f lib/stripe.cjs
+          test -f lib/email.cjs
           test -f lib/auth.cjs
           test -f lib/db.cjs
           test -f db/schema.sql
@@ -51,6 +56,11 @@ jobs:
           node --check api/logout.js
           node --check api/me.js
           node --check api/health.js
+          node --check api/billing-create.js
+          node --check api/stripe-webhook.js
+          node --check api/report-daily.js
+          node --check lib/stripe.cjs
+          node --check lib/email.cjs
           node --check lib/auth.cjs
           node --check lib/db.cjs
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
