@@ -81,6 +81,24 @@ jobs:
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))"
 
+      - name: Test public contact enrichment helpers
+        run: |
+          node <<'NODE'
+          const p=require('./lib/prospecting.cjs');
+          const search='<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Ftaxi-dupond.fr%2Fcontact&amp;rut=x">Taxi Dupond</a>';
+          const links=p.extractSearchLinks(search);
+          if(links[0]!=='https://taxi-dupond.fr/contact') throw new Error('DuckDuckGo link decoding failed');
+          const emails=p.extractEmails('<a href="mailto:Contact@Taxi-Dupond.fr">Contact</a> contact@taxi-dupond.fr');
+          if(emails.length!==1||emails[0]!=='contact@taxi-dupond.fr') throw new Error('email extraction failed');
+          const phone=p.extractFrenchPhone('<p>06 12 34 56 78</p>');
+          if(phone!=='0612345678') throw new Error('phone extraction failed');
+          if(p.publicHttpUrl('http://127.0.0.1/admin')) throw new Error('private IPv4 must be blocked');
+          if(p.publicHttpUrl('http://localhost/admin')) throw new Error('localhost must be blocked');
+          const contacts=p.extractContactLinks('<a href="/contact">Contact</a><a href="https://other.test/contact">Other</a>','https://taxi-dupond.fr');
+          if(contacts.length!==1||contacts[0]!=='https://taxi-dupond.fr/contact') throw new Error('contact-link filtering failed');
+          console.log('Public enrichment helpers OK');
+          NODE
+
       - name: Verify owner-only administration
         run: |
           node <<'NODE'
