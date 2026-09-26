@@ -2,7 +2,7 @@
   "name": "M FactU Admin",
   "short_name": "M FactU",
   "description": "Tableau de bord propriétaire M FactU",
-  "start_url": "/admin",
+  "start_url": "/admin?source=pwa",
   "scope": "/",
   "display": "standalone",
   "orientation": "portrait-primary",
@@ -15,5 +15,15 @@
       "type": "image/svg+xml",
       "purpose": "any maskable"
     }
-  ]
+  ],
+  "id": "/m-factu-admin",
+  "display_override": [
+    "standalone",
+    "minimal-ui"
+  ],
+  "categories": [
+    "business",
+    "productivity"
+  ],
+  "prefer_related_applications": false
 }
