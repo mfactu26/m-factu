@@ -387,6 +387,7 @@ if('serviceWorker' in navigator){
   window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));
 }
 
+// Dashboard card navigation initialized on load.
 document.addEventListener('DOMContentLoaded',()=>{
   navMobile();renderAdmin();renderOrchestrator();renderClient();renderDossier();renderProposal();bindForms();bindReporting();bindCardNavigation();refreshIntegrationStatus();refreshRealProspects();
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
