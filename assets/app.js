@@ -388,6 +388,6 @@ if('serviceWorker' in navigator){
 }
 
 document.addEventListener('DOMContentLoaded',()=>{
-  navMobile();renderAdmin();renderOrchestrator();renderClient();renderDossier();renderProposal();bindForms();bindReporting();refreshIntegrationStatus();refreshRealProspects();
+  navMobile();renderAdmin();renderOrchestrator();renderClient();renderDossier();renderProposal();bindForms();bindReporting();bindCardNavigation();refreshIntegrationStatus();refreshRealProspects();
   document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>closeModal(b.dataset.close));
 });
