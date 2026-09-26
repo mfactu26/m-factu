@@ -1,0 +1,52 @@
+name: M FactU CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify required pages
+        run: |
+          test -f index.html
+          test -f services.html
+          test -f tarifs.html
+          test -f contact.html
+          test -f admin.html
+          test -f orchestrateur.html
+          test -f espace-client.html
+          test -f proposition.html
+          test -f onboarding.html
+          test -f dossier.html
+          test -f assets/app.js
+          test -f assets/styles.css
+          test -f assets/logo.svg
+      - name: Check local HTML links
+        run: |
+          node <<'NODE'
+          const fs=require('fs');
+          const path=require('path');
+          const files=fs.readdirSync('.').filter(f=>f.endsWith('.html'));
+          const missing=[];
+          for(const file of files){
+            const html=fs.readFileSync(file,'utf8');
+            for(const m of html.matchAll(/(?:href|src)="([^"]+)"/g)){
+              const href=m[1];
+              if(/^(https?:|mailto:|tel:|#|data:|javascript:)/.test(href)) continue;
+              const clean=href.split('?')[0].split('#')[0];
+              if(!clean) continue;
+              if(!fs.existsSync(path.resolve(clean))) missing.push(file+' -> '+clean);
+            }
+          }
+          if(missing.length){console.error(missing.join('\n'));process.exit(1)}
+          console.log('Local links OK');
+          NODE
