@@ -1,28 +1,13 @@
-const KEY='mfactu-v2-state';
+const KEY='mfactu-v3-state';
 
 const baseState={
-  clients:[
-    {id:'CL-001',name:'Taxi du Luberon',city:'Cavaillon',status:'Actif',ca:9800,joined:'2026-09-05'},
-    {id:'CL-002',name:'Avenir Taxi',city:'Avignon',status:'Actif',ca:12700,joined:'2026-09-10'},
-    {id:'CL-003',name:'Taxi Provence',city:'Salon-de-Provence',status:'Actif',ca:8600,joined:'2026-09-18'}
-  ],
-  prospects:[
-    {id:'P-101',company:'Taxi Santé Orange',city:'Orange',email:'contact@taxisanteorange.fr',status:'Nouveau',score:92,notes:'Taxi conventionné potentiel'},
-    {id:'P-102',company:'Taxi Rhône Médical',city:'Avignon',email:'contact@rhonemedical.fr',status:'Contacté',score:88,notes:'Réponse attendue'},
-    {id:'P-103',company:'Taxi du Ventoux',city:'Carpentras',email:'contact@taxiduventoux.fr',status:'Intéressé',score:95,notes:'Demande la proposition'},
-    {id:'P-104',company:'Taxi Soleil',city:'Bollène',email:'contact@taxisoleil.fr',status:'Proposition envoyée',score:90,notes:'Proposition 3,5 % envoyée'},
-    {id:'P-105',company:'Taxi Alpilles',city:'Saint-Rémy-de-Provence',email:'contact@taxialpilles.fr',status:'À relancer',score:84,notes:'Relance prévue aujourd’hui'}
-  ],
-  dossiers:[
-    {id:'MF-2026-0142',client:'Taxi du Luberon',patient:'J. D.',date:'2026-09-24',amount:86.4,status:'À traiter'},
-    {id:'MF-2026-0141',client:'Avenir Taxi',patient:'M. R.',date:'2026-09-24',amount:124.8,status:'À télétransmettre'},
-    {id:'MF-2026-0140',client:'Taxi Provence',patient:'L. A.',date:'2026-09-23',amount:72.2,status:'Télétransmis via Lomaco'},
-    {id:'MF-2026-0139',client:'Taxi du Luberon',patient:'C. B.',date:'2026-09-23',amount:94.5,status:'Rejet à corriger'},
-    {id:'MF-2026-0138',client:'Avenir Taxi',patient:'P. N.',date:'2026-09-22',amount:63.1,status:'Payé'}
-  ],
+  clients:[],
+  prospects:[],
+  dossiers:[],
+  dashboard:{activeClients:0,currentMonthFeeCents:0,contractsPending:0,dossiersTodo:0},
   orchestrator:{
-    active:true,target:50,found:312,contacted:150,replies:28,hot:12,proposals:8,
-    today:{searched:42,qualified:31,contacted:24,replies:7,hot:3,proposals:2,signed:1}
+    active:true,target:50,found:0,contacted:0,replies:0,hot:0,proposals:0,
+    today:{searched:0,qualified:0,contacted:0,replies:0,hot:0,proposals:0,signed:0}
   },
   reporting:{daily:false,signedAlert:false,ownerAlert:false}
 };
@@ -34,6 +19,7 @@ function load(){
     return {
       ...cloneBase(),...saved,
       orchestrator:{...cloneBase().orchestrator,...(saved.orchestrator||{}),today:{...cloneBase().orchestrator.today,...(saved.orchestrator?.today||{})}},
+      dashboard:{...cloneBase().dashboard,...(saved.dashboard||{})},
       reporting:{...cloneBase().reporting,...(saved.reporting||{})}
     };
   }catch{return cloneBase()}
@@ -117,15 +103,16 @@ function clientsSignedToday(){return state.orchestrator.today.signed||0}
 function hotProspects(){return [...state.prospects].filter(p=>['Intéressé','Proposition envoyée','À relancer'].includes(p.status)).sort((a,b)=>b.score-a.score)}
 
 function renderAdmin(){
-  const signed=state.clients.length,target=state.orchestrator.target;
-  const caClients=state.clients.reduce((a,c)=>a+(Number(c.ca)||0),0);
-  const todo=state.dossiers.filter(d=>/traiter|transmettre|Rejet/i.test(d.status)).length;
+  const dash=state.dashboard||{};
+  const signed=Number(dash.activeClients||0),target=state.orchestrator.target;
+  const caFactu=Number(dash.currentMonthFeeCents||0)/100;
+  const todo=Number(dash.dossiersTodo||0);
   const remaining=Math.max(0,target-signed);
   const pct=Math.min(100,Math.round(signed/target*100));
 
   setText('kClients',signed);
-  setText('kFactu',euro(caClients*.035));
-  setText('kContracts',contractsPending());
+  setText('kFactu',euro(caFactu));
+  setText('kContracts',Number(dash.contractsPending||0));
   setText('kTodo',todo);
   setText('clientGoalMini',`Objectif ${target}`);
   setText('targetLabel',`${signed} / ${target}`);
@@ -180,7 +167,7 @@ function renderOrchestrator(){
   setText('orc-found',state.orchestrator.found);
   setText('orc-contacted',state.orchestrator.contacted);
   setText('orc-hot',state.orchestrator.hot);
-  setText('orc-signed',state.clients.length);
+  setText('orc-signed',Number(state.dashboard?.activeClients||0));
 
   const t=state.orchestrator.today;
   setText('funnelSearched',t.searched);
@@ -347,10 +334,12 @@ async function refreshRealProspects(){
     const r=await fetch('/api/prospects-discover?limit=100',{cache:'no-store'});
     if(!r.ok)return;
     const data=await r.json();
-    if(Array.isArray(data.prospects)&&data.prospects.length){
+    if(Array.isArray(data.prospects)){
       state.prospects=data.prospects;
-      state.orchestrator.found=data.prospects.length;
-      state.orchestrator.contacted=data.prospects.filter(p=>p.status==='Contacté').length;
+      state.dashboard={...cloneBase().dashboard,...(data.summary||{})};
+      state.orchestrator.found=Number(data.summary?.prospects||data.prospects.length||0);
+      state.orchestrator.contacted=Number(data.summary?.contactedTotal||0);
+      state.orchestrator.today={...cloneBase().orchestrator.today,...(data.activity||{})};
       save();renderOrchestrator();renderAdmin();
     }
   }catch{}
@@ -367,7 +356,7 @@ window.markNextDossier=markNextDossier;
 function previewDailyReport(){
   const t=state.orchestrator.today;
   const body=document.getElementById('reportModalBody');if(!body)return;
-  body.innerHTML=`<div class="report-email-preview"><div class="report-email-head"><b>M FactU — Rapport commercial quotidien</b><br><small>Résumé automatique de l’orchestrateur</small></div><div class="report-email-body"><p>Voici l’activité commerciale du jour :</p><div class="report-email-grid"><div><span>Recherchés</span><b>${t.searched}</b></div><div><span>Qualifiés</span><b>${t.qualified}</b></div><div><span>Contactés</span><b>${t.contacted}</b></div><div><span>Réponses</span><b>${t.replies}</b></div><div><span>Propositions</span><b>${t.proposals}</b></div><div><span>Contrats signés</span><b>${t.signed}</b></div></div><p><b>${state.clients.length}</b> clients actifs sur un objectif de <b>${state.orchestrator.target}</b>.</p><p style="color:#76869a;font-size:12px">Une alerte séparée pourra être envoyée immédiatement lorsqu’un contrat est signé ou lorsqu’un prospect nécessite votre intervention.</p></div></div>`;
+  body.innerHTML=`<div class="report-email-preview"><div class="report-email-head"><b>M FactU — Rapport commercial quotidien</b><br><small>Résumé automatique de l’orchestrateur</small></div><div class="report-email-body"><p>Voici l’activité commerciale du jour :</p><div class="report-email-grid"><div><span>Recherchés</span><b>${t.searched}</b></div><div><span>Qualifiés</span><b>${t.qualified}</b></div><div><span>Contactés</span><b>${t.contacted}</b></div><div><span>Réponses</span><b>${t.replies}</b></div><div><span>Propositions</span><b>${t.proposals}</b></div><div><span>Contrats signés</span><b>${t.signed}</b></div></div><p><b>${Number(state.dashboard?.activeClients||0)}</b> clients actifs sur un objectif de <b>${state.orchestrator.target}</b>.</p><p style="color:#76869a;font-size:12px">Une alerte séparée pourra être envoyée immédiatement lorsqu’un contrat est signé ou lorsqu’un prospect nécessite votre intervention.</p></div></div>`;
   openModal('reportModal');
 }
 window.previewDailyReport=previewDailyReport;
