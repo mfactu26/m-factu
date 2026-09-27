@@ -72,6 +72,7 @@ jobs:
           node --check api/prospect-optout.js
           node --check api/orchestrator-run.js
           node -e "const s=require('fs').readFileSync('api/orchestrator-run.js','utf8'); if(!s.includes('nextPage')) throw new Error('rotating prospect cursor missing'); if(!s.includes('enrichPublicContacts(sql,{limit:50})')) throw new Error('50-prospect email enrichment missing')"
+          node -e "const s=require('fs').readFileSync('api/prospects-discover.js','utf8'); if(!s.includes("action==='enrich_one'")||!s.includes("action==='enrich_batch'")) throw new Error('manual or batch enrichment action missing'); if(!s.includes('const enrichment=await enrichPublicContacts(sql,{limit:50})')) throw new Error('automatic post-discovery enrichment missing')"
           node --check lib/prospecting.cjs
           node --check lib/stripe.cjs
           node --check lib/email.cjs
@@ -79,7 +80,7 @@ jobs:
           node --check lib/db.cjs
           node --check sw.js
           node -e "const s=require('fs').readFileSync('sw.js','utf8'); if(s.includes('mfactu-shell-v1')) throw new Error('stale PWA cache version'); if(!s.includes('no-store')) throw new Error('PWA assets must be network-first')"
-          node -e "const s=require('fs').readFileSync('assets/app.js','utf8'); if(!s.includes('bindCardNavigation')) throw new Error('dashboard card navigation missing'); if(s.includes('state.clients.unshift')||s.includes('d.status=d.status')) throw new Error('simulated production mutations remain'); if((s.match(/bindCardNavigation\(\);/g)||[]).length<1) throw new Error('dashboard card navigation is not initialized'); if(!s.includes('data-href')) throw new Error('clickable row destinations missing')"
+          node -e "const s=require('fs').readFileSync('assets/app.js','utf8'); if(!s.includes('bindCardNavigation')) throw new Error('dashboard card navigation missing'); if(!s.includes('window.enrichProspect')||!s.includes('Trouver l’email')) throw new Error('one-click email enrichment missing'); if(s.includes('state.clients.unshift')||s.includes('d.status=d.status')) throw new Error('simulated production mutations remain'); if((s.match(/bindCardNavigation\(\);/g)||[]).length<1) throw new Error('dashboard card navigation is not initialized'); if(!s.includes('data-href')) throw new Error('clickable row destinations missing')"
           node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))"
@@ -110,7 +111,7 @@ jobs:
           const fs=require('fs');
           const secure=fs.readFileSync('api/secure.js','utf8');
           if(secure.includes('Taxi du Luberon')) throw new Error('demo client remains in secure UI');
-          if(!secure.includes('/assets/app.js?v=20260927-5')) throw new Error('secure UI must force versioned app asset');
+          if(!secure.includes('/assets/app.js?v=20260927-6')) throw new Error('secure UI must force versioned app asset');
           if(!secure.includes('/admin#clients')) throw new Error('clients KPI destination missing');
           if(!/admin:\s*\["owner"\]/.test(secure)) throw new Error('admin must remain owner-only');
           if(!/orchestrateur:\s*\["owner"\]/.test(secure)) throw new Error('orchestrateur must remain owner-only');
