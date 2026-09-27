@@ -17,7 +17,7 @@ module.exports = async function handler(req,res){
       order by created_at desc
       limit ${limit}
     `;
-    const [activityRows,summaryRows]=await Promise.all([
+    const [activityRows,summaryRows,clientRows,dossierRows]=await Promise.all([
       sql`
         select
           count(*) filter (where event_type='prospect_searched')::int as searched,
@@ -35,11 +35,25 @@ module.exports = async function handler(req,res){
         select
           (select count(*)::int from mfactu_prospects) as prospects,
           (select count(*)::int from mfactu_prospects where status='contacted') as contacted_total,
+          (select count(*)::int from mfactu_prospects where status='interested') as interested_total,
           (select count(*)::int from mfactu_organizations where status='active') as active_clients,
           (select count(*)::int from mfactu_proposals where status='sent') as contracts_pending,
           (select count(*)::int from mfactu_dossiers where status in ('to_process','to_transmit','rejected')) as dossiers_todo,
           (select coalesce(sum(fee_cents),0)::bigint from mfactu_billing_periods
              where period_start>=date_trunc('month',current_date)::date) as current_month_fee_cents
+      `,
+      sql`
+        select id,name,city,status,created_at
+        from mfactu_organizations
+        order by created_at desc
+        limit 50
+      `,
+      sql`
+        select d.id,d.reference,d.trip_date,d.amount_cents,d.status,o.name as client_name
+        from mfactu_dossiers d
+        join mfactu_organizations o on o.id=d.organization_id
+        order by d.created_at desc
+        limit 50
       `
     ]);
     const a=activityRows[0]||{};
@@ -59,16 +73,74 @@ module.exports = async function handler(req,res){
       summary:{
         prospects:Number(s.prospects||0),
         contactedTotal:Number(s.contacted_total||0),
+        interestedTotal:Number(s.interested_total||0),
         activeClients:Number(s.active_clients||0),
         contractsPending:Number(s.contracts_pending||0),
         dossiersTodo:Number(s.dossiers_todo||0),
         currentMonthFeeCents:Number(s.current_month_fee_cents||0)
-      }
+      },
+      clients:clientRows.map(row=>({
+        id:row.id,
+        name:row.name,
+        city:row.city||'',
+        status:row.status||'active',
+        createdAt:row.created_at
+      })),
+      dossiers:dossierRows.map(row=>({
+        id:row.id,
+        reference:row.reference,
+        client:row.client_name||'',
+        date:row.trip_date||null,
+        amount:Number(row.amount_cents||0)/100,
+        status:({
+          to_process:'À traiter',
+          to_transmit:'À télétransmettre',
+          transmitted:'Télétransmis',
+          rejected:'Rejet à corriger',
+          paid:'Payé'
+        })[row.status]||row.status||'À traiter'
+      }))
     });
   }
 
   let body={};
   try{body=typeof req.body==="object"&&req.body?req.body:JSON.parse(req.body||"{}")}catch{}
+  if(body.action==='add_manual'){
+    const company=String(body.company||'').trim().slice(0,200);
+    const city=String(body.city||'').trim().slice(0,120);
+    const email=String(body.email||'').trim().toLowerCase().slice(0,160);
+    if(!company||!email||!email.includes('@')) return res.status(400).json({ok:false,error:'INVALID_PROSPECT'});
+    const source='manual:'+Date.now();
+    const inserted=await sql`
+      insert into mfactu_prospects(company_name,city,email,status,score,opt_out,source,notes)
+      values(${company},${city||null},${email},'new',85,false,${source},'Ajout manuel propriétaire')
+      returning id
+    `;
+    await sql`
+      insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+      values('prospect_found',${inserted[0].id},'{"source":"manual"}'::jsonb)
+    `;
+    return res.status(200).json({ok:true,id:inserted[0].id});
+  }
+
+  if(body.action==='set_status'){
+    const id=String(body.prospectId||'');
+    const status=String(body.status||'');
+    if(!['followup','interested'].includes(status)) return res.status(400).json({ok:false,error:'INVALID_STATUS'});
+    const rows=await sql`
+      update mfactu_prospects
+      set status=${status},updated_at=now()
+      where id=${id}::uuid and opt_out=false
+      returning id
+    `;
+    if(!rows[0]) return res.status(404).json({ok:false,error:'PROSPECT_NOT_FOUND'});
+    await sql`
+      insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+      values(${status==='interested'?'prospect_interested':'prospect_followup'},${id}::uuid,${JSON.stringify({source:"owner-ui"})}::jsonb)
+    `;
+    return res.status(200).json({ok:true});
+  }
+
   const target=clampInt(body.target,1,50,50);
   const startPage=clampInt(body.page,1,500,1);
   const department=body.department&&/^\d{2,3}$/.test(String(body.department))?String(body.department):null;
