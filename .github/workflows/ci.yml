@@ -71,7 +71,7 @@ jobs:
           node --check api/prospect-contact.js
           node --check api/prospect-optout.js
           node --check api/orchestrator-run.js
-          node -e "const s=require('fs').readFileSync('api/orchestrator-run.js','utf8'); if(!s.includes('nextPage')) throw new Error('rotating prospect cursor missing')"
+          node -e "const s=require('fs').readFileSync('api/orchestrator-run.js','utf8'); if(!s.includes('nextPage')) throw new Error('rotating prospect cursor missing'); if(!s.includes('enrichPublicContacts(sql,{limit:50})')) throw new Error('50-prospect email enrichment missing')"
           node --check lib/prospecting.cjs
           node --check lib/stripe.cjs
           node --check lib/email.cjs
@@ -98,6 +98,8 @@ jobs:
           if(p.publicHttpUrl('http://localhost/admin')) throw new Error('localhost must be blocked');
           const contacts=p.extractContactLinks('<a href="/contact">Contact</a><a href="https://other.test/contact">Other</a>','https://taxi-dupond.fr');
           if(contacts.length!==1||contacts[0]!=='https://taxi-dupond.fr/contact') throw new Error('contact-link filtering failed');
+          if(!p.medicalTaxiEvidence('<h1>Taxi conventionné CPAM</h1><p>Transport médical</p>')) throw new Error('medical taxi evidence should match');
+          if(p.medicalTaxiEvidence('<h1>Taxi aéroport et tourisme</h1>')) throw new Error('general taxi must not match medical evidence');
           console.log('Public enrichment helpers OK');
           NODE
 

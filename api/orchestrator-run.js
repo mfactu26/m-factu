@@ -148,7 +148,7 @@ module.exports=async function handler(req,res){
     `;
   }
 
-  const enrichment=await enrichPublicContacts(sql,{limit:12});
+  const enrichment=await enrichPublicContacts(sql,{limit:50});
   const outreach=await contactReadyProspects(sql,50);
 
   if(mode==="cron"){
