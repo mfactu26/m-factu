@@ -17,10 +17,12 @@ module.exports = async function handler(req,res){
       order by created_at desc
       limit ${limit}
     `;
-    const [activityRows,summaryRows,clientRows,dossierRows]=await Promise.all([
+    const [activityRows,summaryRows,clientRows,dossierRows,lastRunRows,lastReportRows]=await Promise.all([
       sql`
         select
           count(*) filter (where event_type='prospect_searched')::int as searched,
+          count(*) filter (where event_type='prospect_found')::int as found,
+          count(*) filter (where event_type='prospect_enriched')::int as enriched,
           count(*) filter (where event_type='prospect_qualified')::int as qualified,
           count(*) filter (where event_type='contact_sent')::int as contacted,
           count(*) filter (where event_type='reply_received')::int as replies,
@@ -54,6 +56,20 @@ module.exports = async function handler(req,res){
         join mfactu_organizations o on o.id=d.organization_id
         order by d.created_at desc
         limit 50
+      `,
+      sql`
+        select created_at,metadata
+        from mfactu_commercial_events
+        where event_type='orchestrator_daily_run'
+        order by created_at desc
+        limit 1
+      `,
+      sql`
+        select created_at,status,summary
+        from mfactu_report_runs
+        where report_type='daily-commercial' and status='sent'
+        order by created_at desc
+        limit 1
       `
     ]);
     const a=activityRows[0]||{};
@@ -63,6 +79,8 @@ module.exports = async function handler(req,res){
       prospects:rows.map(mapProspectForUi),
       activity:{
         searched:Number(a.searched||0),
+        found:Number(a.found||0),
+        enriched:Number(a.enriched||0),
         qualified:Number(a.qualified||0),
         contacted:Number(a.contacted||0),
         replies:Number(a.replies||0),
@@ -86,6 +104,15 @@ module.exports = async function handler(req,res){
         status:row.status||'active',
         createdAt:row.created_at
       })),
+      automation:{
+        lastRunAt:lastRunRows[0]?.created_at||null,
+        lastRun:lastRunRows[0]?.metadata||null,
+        lastReportAt:lastReportRows[0]?.created_at||null,
+        reportEmailConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.REPORT_EMAIL&&process.env.EMAIL_FROM),
+        outreachConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.AUTH_SECRET),
+        signingConfigured:Boolean(process.env.SIGNING_PROVIDER_KEY),
+        healthUploadsEnabled:false
+      },
       dossiers:dossierRows.map(row=>({
         id:row.id,
         reference:row.reference,
