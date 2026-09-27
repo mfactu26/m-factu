@@ -72,7 +72,7 @@ jobs:
           node --check api/prospect-optout.js
           node --check api/orchestrator-run.js
           node -e "const s=require('fs').readFileSync('api/orchestrator-run.js','utf8'); if(!s.includes('nextPage')) throw new Error('rotating prospect cursor missing'); if(!s.includes('enrichPublicContacts(sql,{limit:50})')) throw new Error('50-prospect email enrichment missing')"
-          node -e "const s=require('fs').readFileSync('api/prospects-discover.js','utf8'); if(!s.includes("action==='enrich_one'")||!s.includes("action==='enrich_batch'")) throw new Error('manual or batch enrichment action missing'); if(!s.includes('const enrichment=await enrichPublicContacts(sql,{limit:50})')) throw new Error('automatic post-discovery enrichment missing')"
+          node -e "const s=require('fs').readFileSync('api/prospects-discover.js','utf8'); if(!s.includes('enrich_one')||!s.includes('enrich_batch')) throw new Error('manual or batch enrichment action missing'); if(!s.includes('const enrichment=await enrichPublicContacts(sql,{limit:50})')) throw new Error('automatic post-discovery enrichment missing')"
           node --check lib/prospecting.cjs
           node --check lib/stripe.cjs
           node --check lib/email.cjs
