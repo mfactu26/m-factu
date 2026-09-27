@@ -17,7 +17,54 @@ module.exports = async function handler(req,res){
       order by created_at desc
       limit ${limit}
     `;
-    return res.status(200).json({ok:true,prospects:rows.map(mapProspectForUi)});
+    const [activityRows,summaryRows]=await Promise.all([
+      sql`
+        select
+          count(*) filter (where event_type='prospect_searched')::int as searched,
+          count(*) filter (where event_type='prospect_qualified')::int as qualified,
+          count(*) filter (where event_type='contact_sent')::int as contacted,
+          count(*) filter (where event_type='reply_received')::int as replies,
+          count(*) filter (where event_type='prospect_interested')::int as hot,
+          count(*) filter (where event_type='proposal_sent')::int as proposals,
+          count(*) filter (where event_type='contract_signed')::int as signed
+        from mfactu_commercial_events
+        where created_at >= (date_trunc('day', now() at time zone 'Europe/Paris') at time zone 'Europe/Paris')
+          and created_at < ((date_trunc('day', now() at time zone 'Europe/Paris') + interval '1 day') at time zone 'Europe/Paris')
+      `,
+      sql`
+        select
+          (select count(*)::int from mfactu_prospects) as prospects,
+          (select count(*)::int from mfactu_prospects where status='contacted') as contacted_total,
+          (select count(*)::int from mfactu_organizations where status='active') as active_clients,
+          (select count(*)::int from mfactu_proposals where status='sent') as contracts_pending,
+          (select count(*)::int from mfactu_dossiers where status in ('to_process','to_transmit','rejected')) as dossiers_todo,
+          (select coalesce(sum(fee_cents),0)::bigint from mfactu_billing_periods
+             where period_start>=date_trunc('month',current_date)::date) as current_month_fee_cents
+      `
+    ]);
+    const a=activityRows[0]||{};
+    const s=summaryRows[0]||{};
+    return res.status(200).json({
+      ok:true,
+      prospects:rows.map(mapProspectForUi),
+      activity:{
+        searched:Number(a.searched||0),
+        qualified:Number(a.qualified||0),
+        contacted:Number(a.contacted||0),
+        replies:Number(a.replies||0),
+        hot:Number(a.hot||0),
+        proposals:Number(a.proposals||0),
+        signed:Number(a.signed||0)
+      },
+      summary:{
+        prospects:Number(s.prospects||0),
+        contactedTotal:Number(s.contacted_total||0),
+        activeClients:Number(s.active_clients||0),
+        contractsPending:Number(s.contracts_pending||0),
+        dossiersTodo:Number(s.dossiers_todo||0),
+        currentMonthFeeCents:Number(s.current_month_fee_cents||0)
+      }
+    });
   }
 
   let body={};
