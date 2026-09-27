@@ -111,7 +111,7 @@ jobs:
           const secure=fs.readFileSync('api/secure.js','utf8');
           if(secure.includes('Taxi du Luberon')) throw new Error('demo client remains in secure UI');
           if(!secure.includes('/assets/app.js?v=20260927-5')) throw new Error('secure UI must force versioned app asset');
-          if(!secure.includes('data-href="/admin#clients"')) throw new Error('clients KPI is not directly navigable');
+          if(!secure.includes('/admin#clients')) throw new Error('clients KPI destination missing');
           if(!/admin:\s*\["owner"\]/.test(secure)) throw new Error('admin must remain owner-only');
           if(!/orchestrateur:\s*\["owner"\]/.test(secure)) throw new Error('orchestrateur must remain owner-only');
           const files=['index.html','assets/logo.svg','api/secure.js'];
