@@ -1,13 +1,14 @@
-const KEY='mfactu-v5-ui';
+const KEY='mfactu-v7-ui';
 
 const baseState={
   clients:[],
   prospects:[],
   dossiers:[],
   dashboard:{activeClients:0,currentMonthFeeCents:0,contractsPending:0,dossiersTodo:0},
+  automation:{lastRunAt:null,lastRun:null,lastReportAt:null,reportEmailConfigured:false,outreachConfigured:false,signingConfigured:false,healthUploadsEnabled:false},
   orchestrator:{
-    active:true,target:50,found:0,contacted:0,replies:0,hot:0,proposals:0,
-    today:{searched:0,qualified:0,contacted:0,replies:0,hot:0,proposals:0,signed:0}
+    target:50,found:0,contacted:0,replies:0,hot:0,proposals:0,
+    today:{searched:0,found:0,enriched:0,qualified:0,contacted:0,replies:0,hot:0,proposals:0,signed:0}
   },
   reporting:{daily:false,signedAlert:false,ownerAlert:false}
 };
@@ -119,7 +120,7 @@ function renderAdmin(){
   const p=document.getElementById('targetProgress');if(p)p.style.width=`${pct}%`;
 
   const t=state.orchestrator.today;
-  setText('todayFound',t.searched);
+  setText('todayFound',t.found);
   setText('todayContacted',t.contacted);
   setText('todayReplies',t.replies);
   setText('todayHot',t.hot);
@@ -149,7 +150,7 @@ function renderAdmin(){
 
   setText('billingMonth',euro(caFactu));
 
-  setText('reportFound',t.searched);
+  setText('reportFound',t.found);
   setText('reportProposals',t.proposals);
   setText('reportSigned',t.signed);
   setText('reportClients',t.signed);
@@ -173,18 +174,46 @@ function renderOrchestrator(){
 
   const t=state.orchestrator.today;
   setText('funnelSearched',t.searched);
+  setText('funnelFound',t.found);
+  setText('funnelEnriched',t.enriched);
   setText('funnelQualified',t.qualified);
   setText('funnelContacted',t.contacted);
   setText('funnelReplies',t.replies);
   setText('funnelProposals',t.proposals);
   setText('funnelSigned',t.signed);
 
-  const daily=document.getElementById('dailyReportToggle');
-  const signed=document.getElementById('signedAlertToggle');
-  const owner=document.getElementById('ownerAlertToggle');
-  if(daily)daily.checked=state.reporting.daily;
-  if(signed)signed.checked=state.reporting.signedAlert;
-  if(owner)owner.checked=state.reporting.ownerAlert;
+  const base=Math.max(1,Number(t.searched||0));
+  const widths={
+    funnelSearchedBar:t.searched?100:0,
+    funnelFoundBar:Math.min(100,Math.round(Number(t.found||0)/base*100)),
+    funnelEnrichedBar:Math.min(100,Math.round(Number(t.enriched||0)/base*100)),
+    funnelQualifiedBar:Math.min(100,Math.round(Number(t.qualified||0)/base*100)),
+    funnelContactedBar:Math.min(100,Math.round(Number(t.contacted||0)/base*100)),
+    funnelRepliesBar:Math.min(100,Math.round(Number(t.replies||0)/base*100)),
+    funnelProposalsBar:Math.min(100,Math.round(Number(t.proposals||0)/base*100)),
+    funnelSignedBar:Math.min(100,Math.round(Number(t.signed||0)/base*100))
+  };
+  Object.entries(widths).forEach(([id,pct])=>{const el=document.getElementById(id);if(el)el.style.setProperty('--w',pct+'%')});
+
+  const a=state.automation||{};
+  const fmt=iso=>iso?new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}).format(new Date(iso)):'Jamais';
+  setText('automationStatus',a.lastRunAt?'Dernier cycle auto : '+fmt(a.lastRunAt):'Aucun cycle automatique enregistré');
+  setText('ownerAutomationStatus',a.lastRunAt?'Auto : '+fmt(a.lastRunAt):'Auto non exécuté');
+  setText('dailyReportState',a.reportEmailConfigured?'Configuré':'Non configuré');
+  setText('lastReportInfo',a.lastReportAt?'Dernier envoi : '+fmt(a.lastReportAt):'Aucun rapport envoyé');
+  setText('signedAlertState','Non connecté');
+  setText('ownerAlertState','Non connecté');
+
+  const stepState={
+    stepSearch:'Actif',
+    stepQualify:'Actif',
+    stepContact:a.outreachConfigured?'Actif':'Non configuré',
+    stepFollowup:'Manuel',
+    stepProposal:'Non connecté',
+    stepContract:a.signingConfigured?'Connecté':'Non connecté',
+    stepClient:'Après contrat réel'
+  };
+  Object.entries(stepState).forEach(([id,value])=>setText(id,value));
 }
 
 function leadButtons(p){
@@ -194,8 +223,8 @@ function leadButtons(p){
     : `<button class="mini gold" onclick="enrichProspect('${p.id}',this)">Trouver l’email</button>`;
   if(p.status==='Contacté')return `<button class="mini gold" onclick="advanceProspect('${p.id}','Intéressé')">Réponse +</button><button class="mini" onclick="advanceProspect('${p.id}','À relancer')">Relancer</button>`;
   if(p.status==='À relancer')return `<button class="mini primary" onclick="advanceProspect('${p.id}','Intéressé')">Intéressé</button>`;
-  if(p.status==='Intéressé')return `<button class="mini primary" onclick="sendProposal('${p.id}')">Envoyer proposition</button>`;
-  if(p.status==='Proposition envoyée')return `<button class="mini gold" onclick="validateProposal('${p.id}')">Simuler signature</button>`;
+  if(p.status==='Intéressé')return '<span class="pill p-wait">Proposition non connectée</span>';
+  if(p.status==='Proposition envoyée')return '<span class="pill p-wait">Signature non connectée</span>';
   return '';
 }
 
@@ -340,7 +369,6 @@ function bindReporting(){
 }
 
 async function simulateCampaign(){
-  state.orchestrator.active=true;
   toast('Recherche réelle de taxis en cours…');
   try{
     const r=await fetch('/api/prospects-discover',{
@@ -369,6 +397,7 @@ async function refreshRealProspects(){
       state.clients=Array.isArray(data.clients)?data.clients:[];
       state.dossiers=Array.isArray(data.dossiers)?data.dossiers:[];
       state.dashboard={...cloneBase().dashboard,...(data.summary||{})};
+      state.automation={...cloneBase().automation,...(data.automation||{})};
       state.orchestrator.found=Number(data.summary?.prospects||data.prospects.length||0);
       state.orchestrator.contacted=Number(data.summary?.contactedTotal||0);
       state.orchestrator.hot=Number(data.summary?.interestedTotal||0);
@@ -407,14 +436,14 @@ async function refreshIntegrationStatus(){
 if('serviceWorker' in navigator){
   let reloadedForSw=false;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(reloadedForSw||sessionStorage.getItem('mfactu-sw-v5'))return;
+    if(reloadedForSw||sessionStorage.getItem('mfactu-sw-v7'))return;
     reloadedForSw=true;
-    sessionStorage.setItem('mfactu-sw-v5','1');
+    sessionStorage.setItem('mfactu-sw-v7','1');
     location.reload();
   });
   window.addEventListener('load',async()=>{
     try{
-      const reg=await navigator.serviceWorker.register('/sw.js?v=20260927-5',{scope:'/'});
+      const reg=await navigator.serviceWorker.register('/sw.js?v=20260927-7',{scope:'/'});
       await reg.update();
     }catch{}
   });
