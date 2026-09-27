@@ -1,9 +1,9 @@
-const CACHE_NAME='mfactu-shell-v5';
+const CACHE_NAME='mfactu-shell-v6';
 const STATIC_FALLBACK=[
-  '/assets/styles.css?v=20260927-5',
-  '/assets/app.js?v=20260927-5',
+  '/assets/styles.css?v=20260927-6',
+  '/assets/app.js?v=20260927-6',
   '/assets/logo.svg',
-  '/manifest.webmanifest?v=20260927-5'
+  '/manifest.webmanifest?v=20260927-6'
 ];
 
 self.addEventListener('install',event=>{
