@@ -71,6 +71,7 @@ jobs:
           node --check api/prospect-contact.js
           node --check api/prospect-optout.js
           node --check api/orchestrator-run.js
+          node -e "const s=require('fs').readFileSync('api/orchestrator-run.js','utf8'); if(!s.includes('nextPage')) throw new Error('rotating prospect cursor missing')"
           node --check lib/prospecting.cjs
           node --check lib/stripe.cjs
           node --check lib/email.cjs
