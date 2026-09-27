@@ -100,19 +100,51 @@ module.exports=async function handler(req,res){
     if(prior[0]) return res.status(200).json({ok:true,alreadyRun:true});
   }
 
-  const pages=[1,2];
+  const previousRuns=await sql`
+    select metadata
+    from mfactu_commercial_events
+    where event_type='orchestrator_daily_run'
+    order by created_at desc
+    limit 1
+  `;
+  let startPage=Math.max(1,Number(previousRuns[0]&&previousRuns[0].metadata&&previousRuns[0].metadata.nextPage||1));
   let found=[];
-  for(const page of pages){
-    const batch=await searchTaxiCompanies({page,perPage:25});
+  let pagesUsed=[];
+  let totalPages=0;
+
+  for(let i=0;i<2;i++){
+    let page=startPage+i;
+    if(totalPages&&page>totalPages) page=((page-1)%totalPages)+1;
+    let batch=await searchTaxiCompanies({page,perPage:25});
+
+    if(i===0&&startPage>1&&!batch.results.length){
+      startPage=1;
+      page=1;
+      batch=await searchTaxiCompanies({page,perPage:25});
+    }
+
+    totalPages=Number(batch.totalPages||totalPages||0);
+    if(totalPages&&page>totalPages) page=((page-1)%totalPages)+1;
+    pagesUsed.push(page);
     found.push(...batch.results);
   }
+
   found=found.slice(0,50);
+  const lastPage=pagesUsed.length?pagesUsed[pagesUsed.length-1]:startPage;
+  const nextPage=totalPages?(lastPage>=totalPages?1:lastPage+1):lastPage+1;
   const persisted=await persistProspects(sql,found);
   if(found.length){
     await sql`
       insert into mfactu_commercial_events(event_type,metadata)
-      select 'prospect_searched', '{"source":"annuaire-entreprises","mode":"orchestrator"}'::jsonb
+      select 'prospect_searched', ${JSON.stringify({source:"annuaire-entreprises",mode:"orchestrator"})}::jsonb
       from generate_series(1,${found.length})
+    `;
+  }
+  if(persisted.saved.length){
+    await sql`
+      insert into mfactu_commercial_events(event_type,metadata)
+      select 'prospect_qualified', ${JSON.stringify({source:"annuaire-entreprises",mode:"orchestrator"})}::jsonb
+      from generate_series(1,${persisted.saved.length})
     `;
   }
 
@@ -126,6 +158,9 @@ module.exports=async function handler(req,res){
         searched:found.length,
         created:persisted.created,
         existing:persisted.existing,
+        pagesUsed,
+        totalPages,
+        nextPage,
         enrichment,
         contacted:outreach.contacted||0,
         failed:outreach.failed||0
@@ -137,6 +172,9 @@ module.exports=async function handler(req,res){
     searched:found.length,
     created:persisted.created,
     existing:persisted.existing,
+    pagesUsed,
+    totalPages,
+    nextPage,
     enrichment,
     contacted:outreach.contacted||0,
     contactFailed:outreach.failed||0,
