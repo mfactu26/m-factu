@@ -1,4 +1,4 @@
-const KEY='mfactu-v3-state';
+const KEY='mfactu-v5-ui';
 
 const baseState={
   clients:[],
@@ -14,18 +14,15 @@ const baseState={
 
 function cloneBase(){return JSON.parse(JSON.stringify(baseState))}
 function load(){
+  const fresh=cloneBase();
   try{
     const saved=JSON.parse(localStorage.getItem(KEY)||'{}');
-    return {
-      ...cloneBase(),...saved,
-      orchestrator:{...cloneBase().orchestrator,...(saved.orchestrator||{}),today:{...cloneBase().orchestrator.today,...(saved.orchestrator?.today||{})}},
-      dashboard:{...cloneBase().dashboard,...(saved.dashboard||{})},
-      reporting:{...cloneBase().reporting,...(saved.reporting||{})}
-    };
-  }catch{return cloneBase()}
+    fresh.reporting={...fresh.reporting,...(saved.reporting||{})};
+  }catch{}
+  return fresh;
 }
 let state=load();
-function save(){localStorage.setItem(KEY,JSON.stringify(state))}
+function save(){localStorage.setItem(KEY,JSON.stringify({reporting:state.reporting}))}
 function euro(n){return new Intl.NumberFormat('fr-FR',{style:'currency',currency:'EUR'}).format(Number(n)||0)}
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function contactInfo(p){
@@ -43,8 +40,8 @@ function makeNavigable(el,href){
 }
 function bindCardNavigation(){
   const map=[
-    ['kClients','/espace-client'],
-    ['kFactu','/admin#objectif-commercial'],
+    ['kClients','/admin#clients'],
+    ['kFactu','/admin#billing'],
     ['kContracts','/orchestrateur#prospects'],
     ['kTodo','/admin#dossiers']
   ];
@@ -144,8 +141,13 @@ function renderAdmin(){
   const tb=document.getElementById('prospectRows');
   if(tb)tb.innerHTML=state.prospects.slice(0,5).map(x=>`<tr class="clickable-row" data-href="/orchestrateur#prospects" role="link" tabindex="0"><td><b>${esc(x.company)}</b><br><small>${esc(x.city)}</small><br>${contactInfo(x)}</td><td>${pill(x.status)}</td><td><b>${Number(x.score||0)}%</b></td><td><a class="mini" href="/orchestrateur#prospects">Ouvrir</a></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun prospect enregistré</td></tr>';
 
+  const clients=document.getElementById('clientRows');
+  if(clients)clients.innerHTML=state.clients.slice(0,10).map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.city||'')}</td><td>${pill(c.status==='active'?'Actif':c.status)}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">Aucun client réel enregistré</td></tr>';
+
   const db=document.getElementById('dossierRows');
-  if(db)db.innerHTML=state.dossiers.slice(0,5).map(d=>`<tr class="clickable-row" data-href="/dossier?id=${encodeURIComponent(d.id)}" role="link" tabindex="0"><td><b>${esc(d.id)}</b></td><td>${esc(d.client)}</td><td>${pill(d.status)}</td><td>${euro(d.amount)}</td></tr>`).join('');
+  if(db)db.innerHTML=state.dossiers.slice(0,10).map(d=>`<tr class="clickable-row" data-href="/dossier?id=${encodeURIComponent(d.id)}" role="link" tabindex="0"><td><b>${esc(d.reference||d.id)}</b></td><td>${esc(d.client)}</td><td>${pill(d.status)}</td><td>${euro(d.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun dossier réel enregistré</td></tr>';
+
+  setText('billingMonth',euro(caFactu));
 
   setText('reportFound',t.searched);
   setText('reportProposals',t.proposals);
@@ -218,27 +220,27 @@ window.contactProspect=async(id)=>{
   }
 };
 
-window.advanceProspect=(id,status)=>{
-  const p=state.prospects.find(x=>x.id===id);if(!p)return;
-  p.status=status;
-  p.notes=status==='Intéressé'?'Prospect chaud : proposition à envoyer':status==='À relancer'?'Relance automatique programmée':'Mis à jour par l’orchestrateur';
-  if(status==='Intéressé')state.orchestrator.today.hot++;
-  save();renderOrchestrator();renderAdmin();toast('Prospect mis à jour');
+window.advanceProspect=async(id,status)=>{
+  const apiStatus=status==='Intéressé'?'interested':status==='À relancer'?'followup':null;
+  if(!apiStatus)return;
+  try{
+    const r=await fetch('/api/prospects-discover',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify({action:'set_status',prospectId:id,status:apiStatus})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.error||'UPDATE_FAILED');
+    await refreshRealProspects();
+    toast('Prospect mis à jour dans la base');
+  }catch(e){toast('Mise à jour impossible : '+e.message)}
 };
 
-window.sendProposal=(id)=>{
-  const p=state.prospects.find(x=>x.id===id);if(!p)return;
-  p.status='Proposition envoyée';p.notes='Proposition 3,5 % envoyée • contrat en attente';
-  state.orchestrator.proposals++;state.orchestrator.today.proposals++;
-  save();renderOrchestrator();renderAdmin();toast('Proposition 3,5 % envoyée');
+window.sendProposal=()=>{
+  toast('Aucune proposition envoyée : la signature électronique doit encore être connectée.');
 };
 
-window.validateProposal=(id)=>{
-  const p=state.prospects.find(x=>x.id===id);if(!p)return;
-  state.prospects=state.prospects.filter(x=>x.id!==id);
-  state.clients.unshift({id:'CL-'+String(Date.now()).slice(-5),name:p.company,city:p.city,status:'Actif',ca:0,joined:new Date().toISOString().slice(0,10)});
-  state.orchestrator.today.signed++;
-  save();renderOrchestrator();renderAdmin();toast(`${p.company} : contrat signé, client créé`);
+window.validateProposal=()=>{
+  toast('Aucune signature simulée : la signature électronique réelle doit encore être connectée.');
 };
 
 function renderClient(){
@@ -252,7 +254,12 @@ function renderClient(){
 
 function renderDossier(){
   const id=new URLSearchParams(location.search).get('id')||state.dossiers[0]?.id;
-  const d=state.dossiers.find(x=>x.id===id)||state.dossiers[0];if(!d)return;
+  const d=state.dossiers.find(x=>x.id===id)||state.dossiers[0];
+  if(!d){
+    document.querySelectorAll('[data-dossier-id],[data-client],[data-date],[data-amount],[data-patient]').forEach(e=>e.textContent='—');
+    const emptyStatus=document.getElementById('dossierStatus');if(emptyStatus)emptyStatus.textContent='Aucun dossier';
+    return;
+  }
   document.querySelectorAll('[data-dossier-id]').forEach(e=>e.textContent=d.id);
   document.querySelectorAll('[data-client]').forEach(e=>e.textContent=d.client);
   document.querySelectorAll('[data-patient]').forEach(e=>e.textContent=d.patient);
@@ -271,33 +278,35 @@ function renderProposal(){
 
 function bindForms(){
   const lead=document.getElementById('leadForm');
-  if(lead)lead.onsubmit=e=>{
+  if(lead)lead.onsubmit=async e=>{
     e.preventDefault();const f=new FormData(lead);
-    state.prospects.unshift({id:'P-'+Date.now(),company:f.get('company'),city:f.get('city'),email:f.get('email'),status:'Nouveau',score:85,notes:'Ajout manuel'});
-    state.orchestrator.found++;state.orchestrator.today.searched++;
-    save();lead.reset();closeModal('leadModal');renderOrchestrator();renderAdmin();toast('Prospect ajouté');
+    try{
+      const r=await fetch('/api/prospects-discover',{
+        method:'POST',headers:{'content-type':'application/json'},
+        body:JSON.stringify({action:'add_manual',company:f.get('company'),city:f.get('city'),email:f.get('email')})
+      });
+      const data=await r.json().catch(()=>({}));
+      if(!r.ok)throw new Error(data.error||'ADD_FAILED');
+      lead.reset();closeModal('leadModal');await refreshRealProspects();toast('Prospect enregistré dans la base');
+    }catch(err){toast('Ajout impossible : '+err.message)}
   };
 
   const dossier=document.getElementById('dossierForm');
   if(dossier)dossier.onsubmit=e=>{
-    e.preventDefault();const f=new FormData(dossier);
-    state.dossiers.unshift({id:'MF-2026-'+String(Date.now()).slice(-4),client:f.get('client'),patient:f.get('patient'),date:f.get('date'),amount:Number(f.get('amount')),status:'À traiter'});
-    save();dossier.reset();closeModal('dossierModal');renderClient();renderAdmin();toast('Dossier reçu par M FactU');
+    e.preventDefault();
+    toast('Aucun faux dossier créé : le dépôt réel sera activé avec le stockage santé dédié.');
   };
 
   const sign=document.getElementById('signForm');
   if(sign)sign.onsubmit=e=>{
-    e.preventDefault();const f=new FormData(sign);
-    if(!f.get('accept')){toast('Cochez l’acceptation de la proposition');return}
-    const id=f.get('prospect');const p=state.prospects.find(x=>x.id===id);
-    if(p){state.prospects=state.prospects.filter(x=>x.id!==id);state.clients.unshift({id:'CL-'+String(Date.now()).slice(-5),name:p.company,city:p.city,status:'Actif',ca:0,joined:new Date().toISOString().slice(0,10)});state.orchestrator.today.signed++;save()}
-    document.getElementById('proposalBody').innerHTML=`<div class="success"><h2>Proposition validée ✅</h2><p>Le contrat est accepté et le client peut poursuivre son onboarding.</p><div class="actions"><a class="btn btn-blue" href="/onboarding">Commencer l’onboarding</a><a class="btn btn-secondary" href="/espace-client">Ouvrir l’espace client</a></div></div>`;
-    toast('Contrat accepté, client créé');
+    e.preventDefault();
+    toast('Signature réelle non activée : aucune création de client simulée.');
   };
 
   const onboarding=document.getElementById('onboardingForm');
   if(onboarding)onboarding.onsubmit=e=>{
-    e.preventDefault();document.getElementById('onboardingWrap').innerHTML=`<div class="success"><h2>Onboarding terminé ✅</h2><p>Le client peut désormais déposer ses dossiers. Les nouveaux dossiers apparaîtront directement dans votre file « À traiter ».</p><a href="/espace-client" class="btn btn-blue">Accéder à l’espace client</a></div>`;toast('Client opérationnel');
+    e.preventDefault();
+    toast('Onboarding réel à connecter : aucune activation client simulée.');
   };
 }
 
@@ -317,11 +326,7 @@ async function simulateCampaign(){
     });
     const data=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(data.error||'PROSPECT_SEARCH_FAILED');
-    state.prospects=Array.isArray(data.prospects)?data.prospects:state.prospects;
-    state.orchestrator.found=state.prospects.length;
-    state.orchestrator.today.searched+=Number(data.searched||0);
-    state.orchestrator.today.qualified+=Number((data.prospects||[]).length);
-    save();renderOrchestrator();renderAdmin();
+    await refreshRealProspects();
     toast(`${data.searched||0} taxis recherchés • ${data.created||0} nouveaux prospects enregistrés`);
   }catch(e){
     toast('Recherche impossible : '+e.message);
@@ -336,20 +341,22 @@ async function refreshRealProspects(){
     const data=await r.json();
     if(Array.isArray(data.prospects)){
       state.prospects=data.prospects;
+      state.clients=Array.isArray(data.clients)?data.clients:[];
+      state.dossiers=Array.isArray(data.dossiers)?data.dossiers:[];
       state.dashboard={...cloneBase().dashboard,...(data.summary||{})};
       state.orchestrator.found=Number(data.summary?.prospects||data.prospects.length||0);
       state.orchestrator.contacted=Number(data.summary?.contactedTotal||0);
+      state.orchestrator.hot=Number(data.summary?.interestedTotal||0);
       state.orchestrator.today={...cloneBase().orchestrator.today,...(data.activity||{})};
-      save();renderOrchestrator();renderAdmin();
+      renderOrchestrator();renderAdmin();renderClient();renderDossier();
     }
   }catch{}
 }
 
 function markNextDossier(){
-  let d=state.dossiers.find(x=>x.status==='À traiter');if(!d)d=state.dossiers.find(x=>x.status==='À télétransmettre');
-  if(!d){toast('Aucun dossier en attente');return}
-  d.status=d.status==='À traiter'?'À télétransmettre':'Télétransmis via Lomaco';
-  save();renderAdmin();renderClient();toast('Dossier avancé dans le flux Lomaco');
+  let d=state.dossiers.find(x=>x.status==='À traiter'||x.status==='À télétransmettre'||/Rejet/i.test(x.status));
+  if(!d){toast('Aucun dossier réel en attente');return}
+  location.href='/dossier?id='+encodeURIComponent(d.id);
 }
 window.markNextDossier=markNextDossier;
 
@@ -373,7 +380,19 @@ async function refreshIntegrationStatus(){
 }
 
 if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js',{scope:'/'}).catch(()=>{}));
+  let reloadedForSw=false;
+  navigator.serviceWorker.addEventListener('controllerchange',()=>{
+    if(reloadedForSw||sessionStorage.getItem('mfactu-sw-v5'))return;
+    reloadedForSw=true;
+    sessionStorage.setItem('mfactu-sw-v5','1');
+    location.reload();
+  });
+  window.addEventListener('load',async()=>{
+    try{
+      const reg=await navigator.serviceWorker.register('/sw.js?v=20260927-5',{scope:'/'});
+      await reg.update();
+    }catch{}
+  });
 }
 
 // Dashboard card navigation initialized on load.

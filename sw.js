@@ -1,8 +1,15 @@
-const CACHE_NAME='mfactu-shell-v1';
-const STATIC=['/assets/styles.css','/assets/app.js','/assets/logo.svg','/manifest.webmanifest'];
+const CACHE_NAME='mfactu-shell-v5';
+const STATIC_FALLBACK=[
+  '/assets/styles.css?v=20260927-5',
+  '/assets/app.js?v=20260927-5',
+  '/assets/logo.svg',
+  '/manifest.webmanifest?v=20260927-5'
+];
 
 self.addEventListener('install',event=>{
-  event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(STATIC)).catch(()=>{}));
+  event.waitUntil(
+    caches.open(CACHE_NAME).then(cache=>cache.addAll(STATIC_FALLBACK)).catch(()=>{})
+  );
   self.skipWaiting();
 });
 
@@ -20,17 +27,30 @@ self.addEventListener('fetch',event=>{
   if(url.origin!==location.origin) return;
 
   if(req.mode==='navigate'){
-    event.respondWith(fetch(req).catch(()=>caches.match('/login')));
+    event.respondWith(fetch(req,{cache:'no-store'}).catch(()=>caches.match('/login')));
     return;
   }
 
-  if(STATIC.includes(url.pathname)){
+  const isLiveAsset =
+    url.pathname==='/assets/app.js' ||
+    url.pathname==='/assets/styles.css' ||
+    url.pathname==='/manifest.webmanifest' ||
+    url.pathname==='/sw.js';
+
+  if(isLiveAsset){
     event.respondWith(
-      caches.match(req).then(hit=>hit||fetch(req).then(r=>{
-        const copy=r.clone();
-        caches.open(CACHE_NAME).then(c=>c.put(req,copy));
-        return r;
-      }))
+      fetch(req,{cache:'no-store'}).then(response=>{
+        if(response&&response.ok){
+          const copy=response.clone();
+          caches.open(CACHE_NAME).then(cache=>cache.put(req,copy)).catch(()=>{});
+        }
+        return response;
+      }).catch(()=>caches.match(req))
     );
+    return;
+  }
+
+  if(url.pathname==='/assets/logo.svg'){
+    event.respondWith(caches.match(req).then(hit=>hit||fetch(req)));
   }
 });
