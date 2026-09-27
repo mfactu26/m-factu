@@ -191,13 +191,37 @@ function leadButtons(p){
   if(p.status==='Client')return '<span class="pill p-client">Actif</span>';
   if(p.status==='Nouveau')return p.email
     ? `<button class="mini primary" onclick="contactProspect('${p.id}')">Contacter</button>`
-    : '<span class="pill p-wait">Contact à enrichir</span>';
+    : `<button class="mini gold" onclick="enrichProspect('${p.id}',this)">Trouver l’email</button>`;
   if(p.status==='Contacté')return `<button class="mini gold" onclick="advanceProspect('${p.id}','Intéressé')">Réponse +</button><button class="mini" onclick="advanceProspect('${p.id}','À relancer')">Relancer</button>`;
   if(p.status==='À relancer')return `<button class="mini primary" onclick="advanceProspect('${p.id}','Intéressé')">Intéressé</button>`;
   if(p.status==='Intéressé')return `<button class="mini primary" onclick="sendProposal('${p.id}')">Envoyer proposition</button>`;
   if(p.status==='Proposition envoyée')return `<button class="mini gold" onclick="validateProposal('${p.id}')">Simuler signature</button>`;
   return '';
 }
+
+
+window.enrichProspect=async(id,button)=>{
+  const p=state.prospects.find(x=>x.id===id);if(!p)return;
+  const original=button&&button.textContent;
+  if(button){button.disabled=true;button.textContent='Recherche…';}
+  toast('Recherche de l’adresse email professionnelle…');
+  try{
+    const r=await fetch('/api/prospects-discover',{
+      method:'POST',
+      headers:{'content-type':'application/json'},
+      body:JSON.stringify({action:'enrich_one',prospectId:id})
+    });
+    const data=await r.json().catch(()=>({}));
+    if(!r.ok)throw new Error(data.error||'ENRICH_FAILED');
+    await refreshRealProspects();
+    if(data.found) toast('Email professionnel trouvé et enregistré');
+    else toast('Aucun email public fiable trouvé pour ce prospect');
+  }catch(e){
+    toast('Recherche email impossible : '+e.message);
+  }finally{
+    if(button){button.disabled=false;button.textContent=original||'Trouver l’email';}
+  }
+};
 
 window.contactProspect=async(id)=>{
   const p=state.prospects.find(x=>x.id===id);if(!p)return;
@@ -327,7 +351,8 @@ async function simulateCampaign(){
     const data=await r.json().catch(()=>({}));
     if(!r.ok)throw new Error(data.error||'PROSPECT_SEARCH_FAILED');
     await refreshRealProspects();
-    toast(`${data.searched||0} taxis recherchés • ${data.created||0} nouveaux prospects enregistrés`);
+    const emails=Number(data.enrichment?.emailFound||0);
+    toast(`${data.searched||0} taxis recherchés • ${data.created||0} nouveaux • ${emails} email(s) trouvé(s)`);
   }catch(e){
     toast('Recherche impossible : '+e.message);
   }

@@ -1,6 +1,6 @@
 const { getSession } = require("../lib/auth.cjs");
 const { getSql } = require("../lib/db.cjs");
-const { clampInt, searchTaxiCompanies, persistProspects, mapProspectForUi } = require("../lib/prospecting.cjs");
+const { clampInt, searchTaxiCompanies, persistProspects, enrichPublicContacts, enrichProspectById, mapProspectForUi } = require("../lib/prospecting.cjs");
 
 module.exports = async function handler(req,res){
   if(!["GET","POST"].includes(req.method)) return res.status(405).json({ok:false,error:"METHOD_NOT_ALLOWED"});
@@ -123,6 +123,20 @@ module.exports = async function handler(req,res){
     return res.status(200).json({ok:true,id:inserted[0].id});
   }
 
+  if(body.action==='enrich_one'){
+    const id=String(body.prospectId||'');
+    if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)){
+      return res.status(400).json({ok:false,error:'INVALID_PROSPECT_ID'});
+    }
+    const enrichment=await enrichProspectById(sql,id);
+    return res.status(200).json({ok:true,...enrichment});
+  }
+
+  if(body.action==='enrich_batch'){
+    const enrichment=await enrichPublicContacts(sql,{limit:50});
+    return res.status(200).json({ok:true,enrichment});
+  }
+
   if(body.action==='set_status'){
     const id=String(body.prospectId||'');
     const status=String(body.status||'');
@@ -175,6 +189,8 @@ module.exports = async function handler(req,res){
     `;
   }
 
+  const enrichment=await enrichPublicContacts(sql,{limit:50});
+
   return res.status(200).json({
     ok:true,
     searched:selected.length,
@@ -183,6 +199,7 @@ module.exports = async function handler(req,res){
     sourceTotal,
     sourcePages,
     nextPage:page+1,
+    enrichment,
     prospects:persisted.saved.map(mapProspectForUi)
   });
 };
