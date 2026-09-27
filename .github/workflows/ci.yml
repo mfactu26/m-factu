@@ -79,7 +79,7 @@ jobs:
           node --check lib/db.cjs
           node --check sw.js
           node -e "const s=require('fs').readFileSync('sw.js','utf8'); if(s.includes('mfactu-shell-v1')) throw new Error('stale PWA cache version'); if(!s.includes('no-store')) throw new Error('PWA assets must be network-first')"
-          node -e "const s=require('fs').readFileSync('assets/app.js','utf8'); if(!s.includes('bindCardNavigation')) throw new Error('dashboard card navigation missing'); if(s.includes('state.clients.unshift')||s.includes("d.status=d.status")) throw new Error('simulated production mutations remain'); if((s.match(/bindCardNavigation\(\);/g)||[]).length<1) throw new Error('dashboard card navigation is not initialized'); if(!s.includes('data-href')) throw new Error('clickable row destinations missing')"
+          node -e "const s=require('fs').readFileSync('assets/app.js','utf8'); if(!s.includes('bindCardNavigation')) throw new Error('dashboard card navigation missing'); if(s.includes('state.clients.unshift')||s.includes('d.status=d.status')) throw new Error('simulated production mutations remain'); if((s.match(/bindCardNavigation\(\);/g)||[]).length<1) throw new Error('dashboard card navigation is not initialized'); if(!s.includes('data-href')) throw new Error('clickable row destinations missing')"
           node -e "JSON.parse(require('fs').readFileSync('manifest.webmanifest','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('package.json','utf8'))"
           node -e "JSON.parse(require('fs').readFileSync('vercel.json','utf8'))"
