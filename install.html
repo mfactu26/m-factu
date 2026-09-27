@@ -7,9 +7,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <title>Installer M FactU</title>
-  <link rel="manifest" href="/manifest.webmanifest?v=20260927-6">
+  <link rel="manifest" href="/manifest.webmanifest?v=20260927-7">
   <link rel="icon" href="/assets/logo.svg">
-  <link rel="stylesheet" href="/assets/styles.css?v=20260927-6">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260927-7">
   <style>
     .install-page{min-height:100vh;display:grid;place-items:center;padding:24px;background:#f5f6f8}
     .install-card{width:min(520px,100%);background:#fff;border:1px solid #e6e8ec;border-radius:24px;padding:30px;box-shadow:0 20px 60px rgba(0,0,0,.08);text-align:center}
@@ -59,7 +59,7 @@ btn.addEventListener('click',async()=>{
 });
 window.addEventListener('appinstalled',()=>{btn.hidden=true});
 if('serviceWorker' in navigator){
-  window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('/sw.js?v=20260927-6',{scope:'/'});await reg.update()}catch{}});
+  window.addEventListener('load',async()=>{try{const reg=await navigator.serviceWorker.register('/sw.js?v=20260927-7',{scope:'/'});await reg.update()}catch{}});
 }
 </script>
 </body>
