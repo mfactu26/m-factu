@@ -1,8 +1,8 @@
-const CACHE_NAME='mfactu-shell-v9';
+const CACHE_NAME='mfactu-shell-v10';
 const STATIC_FALLBACK=[
-  '/assets/styles.css?v=20260929-impact1',
-  '/assets/app.js?v=20260929-impact1',
-  '/assets/logo.svg',
+  '/assets/styles.css?v=20260929-mobilefix1',
+  '/assets/app.js?v=20260929-mobilefix1',
+  '/assets/logo.svg?v=20260929-mobilefix1',
   '/manifest.webmanifest?v=20260927-7'
 ];
 
