@@ -31,6 +31,10 @@
   ],
   "rewrites": [
     {
+      "source": "/api/public-lead",
+      "destination": "/api/prospects-discover?mode=public-lead"
+    },
+    {
       "source": "/admin",
       "destination": "/api/secure?target=admin"
     },
