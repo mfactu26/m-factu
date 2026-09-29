@@ -323,3 +323,81 @@ body.impact-site{overflow-x:hidden}.impact-site main{overflow-x:clip}.impact-sit
   .premium-side .logout-link span{display:none}
   .premium-side .logout-link{width:36px;height:36px;justify-content:center;padding:0}
 }
+
+
+/* Owner navigation compact pass — 2026-09-29 */
+@media(max-width:700px){
+  .premium-side{
+    grid-template-columns:minmax(0,1fr) auto!important;
+    gap:6px 8px!important;
+    padding:7px 8px 0!important;
+  }
+  .premium-side .side-brand{gap:8px!important}
+  .premium-side .side-brand img{
+    width:38px!important;
+    height:38px!important;
+    border-radius:11px!important;
+  }
+  .premium-side .side-brand b{
+    font-size:15px!important;
+    line-height:1.05!important;
+  }
+  .premium-side .side-brand small{
+    display:block!important;
+    max-width:155px;
+    font-size:8px!important;
+    line-height:1.15;
+    letter-spacing:.02em;
+    text-transform:uppercase;
+    color:#9fb5c9!important;
+  }
+  .premium-side .owner-primary-nav{
+    display:grid!important;
+    grid-template-columns:1fr 1.28fr .82fr .9fr 1.05fr;
+    gap:4px!important;
+    width:100%;
+    overflow:visible!important;
+    padding:0 0 7px!important;
+  }
+  .premium-side .owner-primary-nav a{
+    min-width:0;
+    width:100%;
+    padding:8px 4px!important;
+    justify-content:center!important;
+    gap:4px!important;
+    border-radius:12px!important;
+    font-size:9px!important;
+    line-height:1!important;
+  }
+  .premium-side .owner-primary-nav .label{
+    display:block!important;
+    min-width:0;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  .premium-side .owner-primary-nav .nav-ico{
+    width:auto!important;
+    flex:0 0 auto;
+    font-size:11px!important;
+  }
+  .premium-side .owner-primary-nav .nav-dot{display:none!important}
+  .premium-side .logout-link{
+    min-width:0;
+    padding:7px 9px!important;
+    font-size:9px!important;
+    border-radius:12px!important;
+  }
+  .premium-top{display:none!important}
+  .premium-content{padding-top:14px!important}
+  .premium-head{margin-bottom:14px!important}
+  .premium-head h1{font-size:31px!important}
+}
+@media(max-width:390px){
+  .premium-side .side-brand small{max-width:135px;font-size:7.5px!important}
+  .premium-side .owner-primary-nav{gap:3px!important}
+  .premium-side .owner-primary-nav a{padding:7px 2px!important;font-size:8.2px!important;gap:3px!important}
+  .premium-side .owner-primary-nav .nav-ico{font-size:10px!important}
+  .premium-side .logout-link{padding:7px!important;font-size:8px!important}
+  .premium-side .logout-link span{display:inline!important}
+}
