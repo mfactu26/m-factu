@@ -118,3 +118,14 @@
 
 /* overflow guard impact */
 body.impact-site{overflow-x:hidden}.impact-site main{overflow-x:clip}.impact-site .impact-header-inner,.impact-site .impact-price-band-inner,.impact-site .impact-footer-grid{min-width:0}.impact-site img{max-width:100%}
+
+/* Mobile fidelity correction 2026-09-29 */
+.impact-header-inner{height:78px;grid-template-columns:190px 1fr auto}.impact-brand{height:66px}.impact-brand img{width:178px;height:auto;object-fit:contain}.impact-hero-grid{min-height:600px;padding-block:50px;gap:42px}.impact-hero-visual{min-height:455px;padding:0;background:#eefbff}.impact-hero-art{width:100%;height:100%;display:block}.impact-logo-stage{display:none}.impact-flow{margin:0 18px 18px}
+@media(max-width:820px){
+  .impact-header-inner{height:72px;grid-template-columns:1fr auto}.impact-brand{height:60px}.impact-brand img{width:154px;height:auto}.impact-menu{display:grid;place-items:center;width:54px;height:54px;border-radius:16px;font-size:25px}
+  .impact-hero-grid{padding-block:32px 28px;gap:22px}.impact-hero h1{font-size:40px;line-height:.96;margin:12px 0 18px}.impact-hero-copy>p{font-size:16px;line-height:1.58}.impact-hero-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:22px}.impact-hero-actions .btn{padding:14px 10px;font-size:14px}.impact-badges{margin-top:16px;gap:7px}.impact-badges span{font-size:10px;padding:7px 9px}.impact-hero-visual{min-height:285px;border-radius:26px}.impact-flow{margin:0 12px 12px;padding:11px;gap:7px}.impact-flow span{font-size:9px}.impact-flow b{font-size:14px}.impact-trust-grid{border-radius:18px;box-shadow:0 10px 32px rgba(12,59,96,.07)}.impact-trust-grid a{padding:16px}.impact-section{padding-block:54px}.impact-heading h2{font-size:34px}.impact-card{min-height:220px;padding:21px}
+}
+@media(max-width:460px){
+  .impact-site .container{width:min(91vw,1240px)}.impact-header-inner{height:70px}.impact-brand img{width:145px}.impact-menu{width:50px;height:50px}
+  .impact-hero-grid{padding-top:28px}.impact-hero h1{font-size:37px}.impact-kicker{font-size:10px;line-height:1.45}.impact-hero-copy>p{font-size:15px}.impact-hero-actions{grid-template-columns:1fr}.impact-hero-visual{min-height:250px}.impact-flow{display:none}.impact-badges span{font-size:9px}.impact-heading h2{font-size:31px}
+}

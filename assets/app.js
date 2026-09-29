@@ -436,14 +436,14 @@ async function refreshIntegrationStatus(){
 if('serviceWorker' in navigator){
   let reloadedForSw=false;
   navigator.serviceWorker.addEventListener('controllerchange',()=>{
-    if(reloadedForSw||sessionStorage.getItem('mfactu-sw-v7'))return;
+    if(reloadedForSw||sessionStorage.getItem('mfactu-sw-v10'))return;
     reloadedForSw=true;
-    sessionStorage.setItem('mfactu-sw-v7','1');
+    sessionStorage.setItem('mfactu-sw-v10','1');
     location.reload();
   });
   window.addEventListener('load',async()=>{
     try{
-      const reg=await navigator.serviceWorker.register('/sw.js?v=20260927-7',{scope:'/'});
+      const reg=await navigator.serviceWorker.register('/sw.js?v=20260929-mobilefix1',{scope:'/'});
       await reg.update();
     }catch{}
   });
