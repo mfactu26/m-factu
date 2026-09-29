@@ -22,8 +22,21 @@ function optoutToken(p){
   return payload+"."+sig;
 }
 
-async function contactReadyProspects(sql,limit=50){
-  if(!process.env.RESEND_API_KEY||!process.env.AUTH_SECRET) return {contacted:0,failed:0,skipped:"EMAIL_NOT_CONFIGURED"};
+const DAILY_OUTREACH_CAP=25;
+
+async function contactReadyProspects(sql,limit=DAILY_OUTREACH_CAP){
+  if(!process.env.RESEND_API_KEY||!process.env.AUTH_SECRET) return {contacted:0,failed:0,skipped:"EMAIL_NOT_CONFIGURED",dailyCap:DAILY_OUTREACH_CAP};
+  const countRows=await sql`
+    select count(*)::int as sent_today
+    from mfactu_commercial_events
+    where event_type='contact_sent'
+      and created_at >= (date_trunc('day', now() at time zone 'Europe/Paris') at time zone 'Europe/Paris')
+      and created_at < ((date_trunc('day', now() at time zone 'Europe/Paris') + interval '1 day') at time zone 'Europe/Paris')
+  `;
+  const sentToday=Number(countRows[0]?.sent_today||0);
+  const remaining=Math.max(0,DAILY_OUTREACH_CAP-sentToday);
+  const allowed=Math.max(0,Math.min(Number(limit)||DAILY_OUTREACH_CAP,remaining));
+  if(!allowed) return {contacted:0,failed:0,skipped:"DAILY_CAP_REACHED",sentToday,dailyCap:DAILY_OUTREACH_CAP,remaining:0};
   const rows=await sql`
     select id,company_name,city,email,status,opt_out,notes
     from mfactu_prospects
@@ -32,7 +45,7 @@ async function contactReadyProspects(sql,limit=50){
       and email is not null
       and length(trim(email))>3
     order by score desc, created_at asc
-    limit ${limit}
+    limit ${allowed}
   `;
   let contacted=0,failed=0;
   const appUrl=process.env.APP_URL||"https://m-factu.vercel.app";
@@ -80,7 +93,7 @@ ${unsubscribe}`;
       `;
     }
   }
-  return {contacted,failed};
+  return {contacted,failed,sentToday:sentToday+contacted,dailyCap:DAILY_OUTREACH_CAP,remaining:Math.max(0,remaining-contacted)};
 }
 
 module.exports=async function handler(req,res){
@@ -149,7 +162,7 @@ module.exports=async function handler(req,res){
   }
 
   const enrichment=await enrichPublicContacts(sql,{limit:50});
-  const outreach=await contactReadyProspects(sql,50);
+  const outreach=await contactReadyProspects(sql,DAILY_OUTREACH_CAP);
 
   if(mode==="cron"){
     await sql`
@@ -179,6 +192,8 @@ module.exports=async function handler(req,res){
     contacted:outreach.contacted||0,
     contactFailed:outreach.failed||0,
     contactSkipped:outreach.skipped||null,
+    dailyOutreachCap:outreach.dailyCap||DAILY_OUTREACH_CAP,
+    dailyOutreachRemaining:Number.isFinite(outreach.remaining)?outreach.remaining:null,
     note:"Les contacts sont envoyés uniquement aux prospects disposant d'une adresse professionnelle enregistrée et non désinscrite."
   });
 };
