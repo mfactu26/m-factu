@@ -232,3 +232,94 @@ body.impact-site{overflow-x:hidden}.impact-site main{overflow-x:clip}.impact-sit
   .impact-nav a{font-size:12px!important}
   .impact-hero-grid{padding-top:26px}
 }
+
+
+/* Owner navigation: mobile header regrouped and labelled — 2026-09-29 */
+@media(max-width:700px){
+  .premium-shell{display:block;min-height:100vh}
+  .premium-side{
+    position:sticky;top:0;z-index:60;height:auto;
+    display:grid!important;
+    grid-template-columns:minmax(0,1fr) auto;
+    grid-template-rows:auto auto;
+    gap:7px 10px;
+    padding:8px 10px 0;
+    border-right:0;
+    box-shadow:0 8px 24px rgba(4,24,43,.18);
+  }
+  .premium-side .side-brand{
+    grid-column:1;grid-row:1;
+    margin:0;padding:0;border:0;
+    min-width:0;
+  }
+  .premium-side .side-brand img{width:40px!important;height:40px!important;border-radius:12px}
+  .premium-side .side-brand div{display:block!important}
+  .premium-side .side-brand b{font-size:14px;line-height:1.05}
+  .premium-side .side-brand small{display:block!important;font-size:9px;margin-top:2px}
+  .premium-side .nav-section,.premium-side .side-grow,.premium-side .owner-card{display:none!important}
+  .premium-side .owner-primary-nav{
+    grid-column:1/-1;grid-row:2;
+    display:flex!important;
+    gap:6px;
+    margin:0;
+    padding:0 0 8px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .premium-side .owner-primary-nav::-webkit-scrollbar{display:none}
+  .premium-side .owner-primary-nav a{
+    flex:0 0 auto;
+    display:flex!important;
+    align-items:center;
+    justify-content:flex-start!important;
+    gap:6px;
+    white-space:nowrap;
+    padding:8px 10px!important;
+    border-radius:999px;
+    font-size:11px!important;
+    line-height:1;
+    background:rgba(255,255,255,.055);
+    border:1px solid rgba(255,255,255,.08);
+  }
+  .premium-side .owner-primary-nav a.active{
+    background:linear-gradient(135deg,#1476cc,#0f98b8);
+    box-shadow:none;
+  }
+  .premium-side .owner-primary-nav .label{display:inline!important}
+  .premium-side .owner-primary-nav .nav-ico{width:auto;font-size:13px}
+  .premium-side .owner-primary-nav .nav-dot{
+    width:6px;height:6px;margin-left:1px;box-shadow:none;
+  }
+  .premium-side .logout-link{
+    grid-column:2;grid-row:1;
+    align-self:center;
+    display:inline-flex;
+    align-items:center;
+    gap:4px;
+    margin:0;
+    padding:8px 10px;
+    border:1px solid rgba(255,255,255,.12);
+    border-radius:999px;
+    background:rgba(255,255,255,.06);
+    color:#dce8f3;
+    font-size:10px;
+    white-space:nowrap;
+  }
+  .premium-dashboard{width:100%}
+  .premium-top{
+    min-height:58px;height:auto;
+    padding:9px 14px;
+    gap:10px;
+  }
+  .premium-top .status-chip{display:none}
+  .premium-top .btn{padding:9px 10px;font-size:10px}
+  .premium-content{padding:16px}
+}
+@media(max-width:430px){
+  .premium-side{padding-left:8px;padding-right:8px}
+  .premium-side .owner-primary-nav a{padding:8px 9px!important;font-size:10.5px!important}
+  .premium-side .logout-link span{display:none}
+  .premium-side .logout-link{width:36px;height:36px;justify-content:center;padding:0}
+}
