@@ -129,3 +129,106 @@ body.impact-site{overflow-x:hidden}.impact-site main{overflow-x:clip}.impact-sit
   .impact-site .container{width:min(91vw,1240px)}.impact-header-inner{height:70px}.impact-brand img{width:145px}.impact-menu{width:50px;height:50px}
   .impact-hero-grid{padding-top:28px}.impact-hero h1{font-size:37px}.impact-kicker{font-size:10px;line-height:1.45}.impact-hero-copy>p{font-size:15px}.impact-hero-actions{grid-template-columns:1fr}.impact-hero-visual{min-height:250px}.impact-flow{display:none}.impact-badges span{font-size:9px}.impact-heading h2{font-size:31px}
 }
+
+/* GlowBiz-style public navigation strip — 2026-09-29 */
+.impact-action-label-mobile{display:none}
+@media(max-width:820px){
+  .impact-header{background:rgba(255,255,255,.98);border-bottom:1px solid #dce7f0;box-shadow:none}
+  .impact-header-inner{
+    width:min(94vw,1240px);
+    height:auto!important;
+    min-height:0;
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto!important;
+    grid-template-rows:auto auto;
+    gap:7px 8px;
+    padding:8px 0 7px;
+    align-items:center;
+  }
+  .impact-brand{
+    grid-column:1;
+    grid-row:1;
+    height:52px!important;
+    min-width:0;
+    overflow:hidden;
+  }
+  .impact-brand img{
+    width:148px!important;
+    height:auto!important;
+    max-height:50px;
+    object-fit:contain;
+    object-position:left center;
+  }
+  .impact-header-actions{
+    grid-column:2;
+    grid-row:1;
+    display:flex!important;
+    align-items:center;
+    justify-content:flex-end;
+    gap:7px;
+    white-space:nowrap;
+  }
+  .impact-header-actions .btn{
+    min-height:40px;
+    padding:9px 12px;
+    border-radius:999px;
+    font-size:11px;
+    line-height:1;
+    box-shadow:none;
+  }
+  .impact-header-actions .impact-quote{
+    color:#fff;
+    box-shadow:0 7px 18px rgba(11,120,201,.16);
+  }
+  .impact-action-label-full{display:none}
+  .impact-action-label-mobile{display:inline}
+  .impact-action-arrow{font-size:12px}
+  .impact-menu,.mobile-nav.impact-menu{display:none!important}
+  .impact-nav{
+    grid-column:1 / -1;
+    grid-row:2;
+    display:flex!important;
+    align-items:center;
+    justify-content:flex-start;
+    gap:22px;
+    width:100%;
+    min-width:0;
+    margin:0!important;
+    padding:8px 1px 3px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+    scroll-snap-type:x proximity;
+  }
+  .impact-nav::-webkit-scrollbar{display:none}
+  .impact-nav a{
+    display:inline-block!important;
+    flex:0 0 auto;
+    scroll-snap-align:start;
+    white-space:nowrap;
+    padding:3px 0 8px!important;
+    border-bottom:2px solid transparent!important;
+    color:#18354e;
+    font-size:13px!important;
+    font-weight:780;
+  }
+  .impact-nav a.active{
+    color:#0b78c9;
+    border-bottom-color:#13b8c7!important;
+  }
+  .impact-nav a:hover{border-bottom-color:#13b8c7!important}
+  .impact-hero-grid{padding-top:30px}
+  .impact-page-hero{padding-top:48px}
+}
+@media(max-width:460px){
+  .impact-header-inner{width:min(94vw,1240px);gap:6px 6px}
+  .impact-brand{height:48px!important}
+  .impact-brand img{width:136px!important;max-height:46px}
+  .impact-header-actions{gap:5px}
+  .impact-header-actions .btn{min-height:38px;padding:8px 10px;font-size:10px}
+  .impact-header-actions .impact-quote .impact-action-arrow{display:none}
+  .impact-nav{gap:20px;padding-top:7px}
+  .impact-nav a{font-size:12px!important}
+  .impact-hero-grid{padding-top:26px}
+}
