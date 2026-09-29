@@ -1,4 +1,4 @@
-const CACHE_NAME='mfactu-shell-v10';
+const CACHE_NAME='mfactu-shell-mobile10';
 const STATIC_FALLBACK=[
   '/assets/styles.css?v=20260929-mobilefix1',
   '/assets/app.js?v=20260929-mobilefix1',
