@@ -401,3 +401,14 @@ body.impact-site{overflow-x:hidden}.impact-site main{overflow-x:clip}.impact-sit
   .premium-side .logout-link{padding:7px!important;font-size:8px!important}
   .premium-side .logout-link span{display:inline!important}
 }
+
+
+/* Fix visible compliance CTA text — 2026-09-29 */
+.impact-compliance-grid .impact-btn-light,
+.impact-compliance-grid .impact-btn-light:link,
+.impact-compliance-grid .impact-btn-light:visited{
+  background:#fff!important;
+  color:#06213f!important;
+  -webkit-text-fill-color:#06213f!important;
+  opacity:1!important;
+}
