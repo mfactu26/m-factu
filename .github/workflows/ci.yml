@@ -71,7 +71,7 @@ jobs:
           node --check api/prospect-contact.js
           node --check api/prospect-optout.js
           node --check api/orchestrator-run.js
-          node -e "const s=require('fs').readFileSync('api/orchestrator-run.js','utf8'); if(!s.includes('nextPage')) throw new Error('rotating prospect cursor missing'); if(!s.includes('enrichPublicContacts(sql,{limit:50})')) throw new Error('50-prospect email enrichment missing')"
+          node -e "const s=require('fs').readFileSync('api/orchestrator-run.js','utf8'); if(!s.includes('nextPage')) throw new Error('rotating prospect cursor missing'); if(!s.includes('enrichPublicContacts(sql,{limit:50})')) throw new Error('50-prospect email enrichment missing'); if(!s.includes('DAILY_OUTREACH_CAP=25')) throw new Error('25-email daily outreach cap missing')"
           node -e "const s=require('fs').readFileSync('api/prospects-discover.js','utf8'); if(!s.includes('enrich_one')||!s.includes('enrich_batch')) throw new Error('manual or batch enrichment action missing'); if(!s.includes('const enrichment=await enrichPublicContacts(sql,{limit:50})')) throw new Error('automatic post-discovery enrichment missing')"
           node --check lib/prospecting.cjs
           node --check lib/stripe.cjs
@@ -111,7 +111,7 @@ jobs:
           const fs=require('fs');
           const secure=fs.readFileSync('api/secure.js','utf8');
           if(secure.includes('Taxi du Luberon')) throw new Error('demo client remains in secure UI');
-          if(!secure.includes('/assets/app.js?v=20260927-7')) throw new Error('secure UI must force versioned app asset');
+          if(!/\/assets\/app\.js\?v=[A-Za-z0-9._-]+/.test(secure)) throw new Error('secure UI must force versioned app asset');
           if(!secure.includes('/admin#clients')) throw new Error('clients KPI destination missing');
           if(/--w:(?:100|78|61|35|22|10)%/.test(secure)) throw new Error('cosmetic funnel widths remain');
           if(secure.includes('● En direct')||secure.includes('● Live')||secure.includes('Mode autonome')||secure.includes('Orchestrateur prêt')) throw new Error('unverified live/automation labels remain');
