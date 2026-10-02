@@ -145,6 +145,8 @@ module.exports=async function handler(req,res){
   found=found.slice(0,50);
   const lastPage=pagesUsed.length?pagesUsed[pagesUsed.length-1]:startPage;
   const nextPage=totalPages?(lastPage>=totalPages?1:lastPage+1):lastPage+1;
+  const backlogOutreach=await contactReadyProspects(sql,DAILY_OUTREACH_CAP);
+
   const persisted=await persistProspects(sql,found);
   if(found.length){
     await sql`
@@ -153,16 +155,19 @@ module.exports=async function handler(req,res){
       from generate_series(1,${found.length})
     `;
   }
-  if(persisted.saved.length){
-    await sql`
-      insert into mfactu_commercial_events(event_type,metadata)
-      select 'prospect_qualified', ${JSON.stringify({source:"annuaire-entreprises",mode:"orchestrator"})}::jsonb
-      from generate_series(1,${persisted.saved.length})
-    `;
-  }
-
-  const enrichment=await enrichPublicContacts(sql,{limit:50});
-  const outreach=await contactReadyProspects(sql,DAILY_OUTREACH_CAP);
+  const enrichment=await enrichPublicContacts(sql,{limit:12});
+  const remainingAfterBacklog=Math.max(0,DAILY_OUTREACH_CAP-Number(backlogOutreach.contacted||0));
+  const freshOutreach=remainingAfterBacklog>0
+    ? await contactReadyProspects(sql,remainingAfterBacklog)
+    : {contacted:0,failed:0,skipped:"DAILY_CAP_REACHED",sentToday:backlogOutreach.sentToday,dailyCap:DAILY_OUTREACH_CAP,remaining:0};
+  const outreach={
+    contacted:Number(backlogOutreach.contacted||0)+Number(freshOutreach.contacted||0),
+    failed:Number(backlogOutreach.failed||0)+Number(freshOutreach.failed||0),
+    skipped:freshOutreach.skipped||backlogOutreach.skipped||null,
+    dailyCap:DAILY_OUTREACH_CAP,
+    sentToday:Number(freshOutreach.sentToday ?? backlogOutreach.sentToday ?? 0),
+    remaining:Number(freshOutreach.remaining ?? backlogOutreach.remaining ?? 0)
+  };
 
   if(mode==="cron"){
     await sql`
@@ -174,7 +179,9 @@ module.exports=async function handler(req,res){
         pagesUsed,
         totalPages,
         nextPage,
+        backlogContacted:backlogOutreach.contacted||0,
         enrichment,
+        freshContacted:freshOutreach.contacted||0,
         contacted:outreach.contacted||0,
         failed:outreach.failed||0
       })}::jsonb)
@@ -188,7 +195,9 @@ module.exports=async function handler(req,res){
     pagesUsed,
     totalPages,
     nextPage,
+    backlogOutreach,
     enrichment,
+    freshOutreach,
     contacted:outreach.contacted||0,
     contactFailed:outreach.failed||0,
     contactSkipped:outreach.skipped||null,
