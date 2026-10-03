@@ -57,7 +57,7 @@
   ],
   "headers": [
     {
-      "source": "/(admin|orchestrateur|espace-client|dossier|onboarding)(.*)",
+      "source": "/(admin|orchestrateur|espace-client|dossier|onboarding|depot-contrat)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
