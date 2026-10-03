@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { getSession } = require("../lib/auth.cjs");
 const { getSql } = require("../lib/db.cjs");
+const { sendEmail } = require("../lib/email.cjs");
 
 const MAX_BYTES = 3 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -97,7 +98,96 @@ module.exports = async function handler(req, res) {
 
   if (req.method === "POST") {
     const body = readBody(req);
-    if (!body || body.action !== "create_upload_link") return res.status(400).json({ ok: false, error: "INVALID_ACTION" });
+    if (!body) return res.status(400).json({ ok: false, error: "INVALID_ACTION" });
+    if (body.action === "send_contract_email") {
+      const prospectId = String(body.prospectId || "");
+      const organizationId = String(body.organizationId || "");
+      if (Boolean(prospectId) === Boolean(organizationId) ||
+          (prospectId && !UUID.test(prospectId)) ||
+          (organizationId && !UUID.test(organizationId))) {
+        return res.status(400).json({ ok: false, error: "INVALID_CLIENT" });
+      }
+      const base64 = String(body.fileBase64 || "");
+      const filename = cleanFilename(body.filename || "contrat-mfactu.pdf");
+      if (!base64 || base64.length > Math.ceil(MAX_BYTES / 3) * 4 + 8 ||
+          !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(base64)) {
+        return res.status(400).json({ ok: false, error: "INVALID_FILE" });
+      }
+      const pdf = Buffer.from(base64, "base64");
+      if (pdf.length < 8 || pdf.length > MAX_BYTES || pdf.subarray(0, 5).toString("ascii") !== "%PDF-") {
+        return res.status(400).json({ ok: false, error: "PDF_REQUIRED_OR_TOO_LARGE" });
+      }
+      try {
+        let companyName = "votre entreprise";
+        let recipient = String(body.email || "").trim();
+        if (prospectId) {
+          const prospects = await sql`select id,company_name,email,opt_out from mfactu_prospects where id=${prospectId}::uuid limit 1`;
+          if (!prospects[0]) return res.status(404).json({ ok: false, error: "PROSPECT_NOT_FOUND" });
+          if (prospects[0].opt_out) return res.status(409).json({ ok: false, error: "PROSPECT_OPTED_OUT" });
+          companyName = String(prospects[0].company_name || companyName).replace(/[\r\n]+/g, " ").trim();
+          recipient = String(prospects[0].email || "").trim();
+        } else {
+          const organizations = await sql`select id,name from mfactu_organizations where id=${organizationId}::uuid limit 1`;
+          if (!organizations[0]) return res.status(404).json({ ok: false, error: "CLIENT_NOT_FOUND" });
+          companyName = String(organizations[0].name || companyName).replace(/[\r\n]+/g, " ").trim();
+        }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+          return res.status(409).json({ ok: false, error: "EMAIL_MISSING_OR_INVALID" });
+        }
+
+        const rawToken = crypto.randomBytes(32).toString("base64url");
+        const hash = sha256(Buffer.from(rawToken, "utf8"));
+        const inserted = prospectId
+          ? await sql`
+              insert into mfactu_contract_upload_tokens(prospect_id,token_hash,created_by,expires_at)
+              values(${prospectId}::uuid,${hash},null,now()+interval '21 days')
+              returning expires_at
+            `
+          : await sql`
+              insert into mfactu_contract_upload_tokens(organization_id,token_hash,created_by,expires_at)
+              values(${organizationId}::uuid,${hash},null,now()+interval '21 days')
+              returning expires_at
+            `;
+        const uploadUrl = (process.env.APP_URL || "https://m-factu.vercel.app") +
+          "/depot-contrat?token=" + encodeURIComponent(rawToken);
+        let sent;
+        try {
+          sent = await sendEmail({
+            to: recipient,
+            from: process.env.CONTRACT_EMAIL_FROM || process.env.PROSPECT_EMAIL_FROM || process.env.EMAIL_FROM,
+            replyTo: [process.env.REPORT_EMAIL || process.env.OWNER_EMAIL].filter(Boolean),
+            subject: "Contrat de prestation M FactU — " + companyName,
+            text: `Bonjour,
+
+Vous trouverez en pièce jointe votre contrat de prestation M FactU.
+Après l’avoir imprimé, signé et scanné, déposez le PDF signé avec ce lien personnel :
+${uploadUrl}
+
+Le lien est à usage unique et expire dans 21 jours. Merci de déposer uniquement le contrat signé, sans document médical ni dossier patient.
+
+M FactU`,
+            attachments: [{ filename, content: base64, contentType: "application/pdf" }]
+          });
+        } catch (error) {
+          await sql`delete from mfactu_contract_upload_tokens where token_hash=${hash} and used_at is null`;
+          throw error;
+        }
+        try {
+          await sql`
+            insert into mfactu_commercial_events(event_type,prospect_id,organization_id,metadata)
+            values('contract_email_sent',${prospectId || null}::uuid,${organizationId || null}::uuid,
+              ${JSON.stringify({messageId:sent.id||null,recipient,filename,expiresAt:inserted[0].expires_at})}::jsonb)
+          `;
+        } catch (eventError) {
+          console.error("M FactU contract email audit event failed", eventError);
+        }
+        return res.status(200).json({ ok: true, messageId: sent.id || null, expiresAt: inserted[0].expires_at });
+      } catch (error) {
+        console.error("M FactU contract email failed", error);
+        return res.status(502).json({ ok: false, error: error.code || "CONTRACT_EMAIL_FAILED" });
+      }
+    }
+    if (body.action !== "create_upload_link") return res.status(400).json({ ok: false, error: "INVALID_ACTION" });
     const prospectId = String(body.prospectId || "");
     const organizationId = String(body.organizationId || "");
     if (Boolean(prospectId) === Boolean(organizationId) ||
