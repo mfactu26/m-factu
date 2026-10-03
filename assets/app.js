@@ -147,7 +147,7 @@ function renderAdmin(){
   if(clients){
     const head=clients.closest('table')?.querySelector('thead tr');
     if(head&&head.cells.length===3)head.insertAdjacentHTML('beforeend','<th>Contrat</th>');
-    clients.innerHTML=state.clients.slice(0,10).map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.city||'')}</td><td>${pill(c.status==='active'?'Actif':c.status)}</td><td><button class="mini" onclick="createContractUploadLink('organization','${esc(c.id)}')">Créer un lien</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun client réel enregistré</td></tr>';
+    clients.innerHTML=state.clients.slice(0,10).map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.city||'')}</td><td>${pill(c.status==='active'?'Actif':c.status)}</td><td><button class="mini" onclick="createContractUploadLink('organization','${esc(c.id)}')">Envoyer contrat + lien</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun client réel enregistré</td></tr>';
   }
   renderContractDocuments();
 
@@ -164,16 +164,36 @@ function renderAdmin(){
 
 const laneOrder=['Nouveau','Contacté','À relancer','Intéressé','Proposition envoyée','Client'];
 window.createContractUploadLink=async function(kind,id){
-  const body=kind==='organization'?{action:'create_upload_link',organizationId:id}:{action:'create_upload_link',prospectId:id};
-  try{
-    const response=await fetch('/api/contracts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
-    const data=await response.json().catch(()=>({}));
-    if(!response.ok)throw new Error(data.error||'LINK_CREATE_FAILED');
-    const url=new URL('/depot-contrat',location.origin);
-    url.searchParams.set('token',data.token);
-    try{await navigator.clipboard.writeText(url.href);toast('Lien sécurisé copié. Collez-le dans votre e-mail au client.');}
-    catch{window.prompt('Copiez ce lien et envoyez-le avec le contrat PDF :',url.href);}
-  }catch(e){toast('Création du lien impossible : '+e.message);}
+  let email='';
+  if(kind==='organization'){
+    email=window.prompt('Adresse e-mail du client :','')||'';
+    if(!email.trim())return;
+  }
+  const picker=document.createElement('input');
+  picker.type='file';picker.accept='.pdf,application/pdf';picker.style.display='none';
+  document.body.appendChild(picker);
+  picker.onchange=async()=>{
+    const file=picker.files&&picker.files[0];picker.remove();
+    if(!file)return;
+    if(file.size>3*1024*1024){toast('Le contrat PDF dépasse la limite de 3 Mo');return;}
+    if(file.type&&file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf')){toast('Sélectionnez un contrat au format PDF');return;}
+    if(!window.confirm('Envoyer ce contrat PDF finalisé avec un lien personnel pour déposer le contrat signé ?'))return;
+    try{
+      const dataUrl=await new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result||''));reader.onerror=()=>reject(new Error('FILE_READ_FAILED'));reader.readAsDataURL(file)});
+      const fileBase64=dataUrl.split(',')[1]||'';
+      const body={action:'send_contract_email',filename:file.name,fileBase64};
+      if(kind==='organization'){body.organizationId=id;body.email=email.trim();}
+      else body.prospectId=id;
+      const response=await fetch('/api/contracts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+      const result=await response.json().catch(()=>({}));
+      if(!response.ok)throw new Error(result.error||'CONTRACT_EMAIL_FAILED');
+      toast('Contrat et lien de dépôt envoyés par e-mail');
+    }catch(e){
+      const messages={EMAIL_MISSING_OR_INVALID:'Adresse e-mail du client absente ou invalide',PROSPECT_OPTED_OUT:'Ce prospect a demandé à ne plus recevoir de messages',PDF_REQUIRED_OR_TOO_LARGE:'PDF requis (3 Mo maximum)'};
+      toast('Envoi impossible : '+(messages[e.message]||e.message));
+    }
+  };
+  picker.click();
 };
 
 function renderContractDocuments(){
@@ -259,8 +279,8 @@ function leadButtons(p){
     : `<button class="mini gold" onclick="enrichProspect('${p.id}',this)">Trouver l’email</button>`;
   if(p.status==='Contacté')return `<button class="mini gold" onclick="advanceProspect('${p.id}','Intéressé')">Réponse +</button><button class="mini" onclick="advanceProspect('${p.id}','À relancer')">Relancer</button>`;
   if(p.status==='À relancer')return `<button class="mini primary" onclick="advanceProspect('${p.id}','Intéressé')">Intéressé</button>`;
-  if(p.status==='Intéressé')return `<span class="pill p-wait">Proposition non connectée</span><button class="mini" onclick="createContractUploadLink('prospect','${p.id}')">Lien de dépôt</button>`;
-  if(p.status==='Proposition envoyée')return `<span class="pill p-wait">Signature manuelle</span><button class="mini" onclick="createContractUploadLink('prospect','${p.id}')">Lien de dépôt</button>`;
+  if(p.status==='Intéressé')return `<span class="pill p-wait">Proposition non connectée</span><button class="mini" onclick="createContractUploadLink('prospect','${p.id}')">Envoyer contrat + lien</button>`;
+  if(p.status==='Proposition envoyée')return `<span class="pill p-wait">Signature manuelle</span><button class="mini" onclick="createContractUploadLink('prospect','${p.id}')">Envoyer contrat + lien</button>`;
   return '';
 }
 
