@@ -3,6 +3,7 @@ const KEY='mfactu-v7-ui';
 const baseState={
   clients:[],
   prospects:[],
+  contractDocuments:[],
   dossiers:[],
   dashboard:{activeClients:0,currentMonthFeeCents:0,contractsPending:0,dossiersTodo:0},
   automation:{lastRunAt:null,lastRun:null,lastReportAt:null,reportEmailConfigured:false,outreachConfigured:false,signingConfigured:false,healthUploadsEnabled:false},
@@ -143,7 +144,12 @@ function renderAdmin(){
   if(tb)tb.innerHTML=state.prospects.slice(0,5).map(x=>`<tr class="clickable-row" data-href="/orchestrateur#prospects" role="link" tabindex="0"><td><b>${esc(x.company)}</b><br><small>${esc(x.city)}</small><br>${contactInfo(x)}</td><td>${pill(x.status)}</td><td><b>${Number(x.score||0)}%</b></td><td><a class="mini" href="/orchestrateur#prospects">Ouvrir</a></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun prospect enregistré</td></tr>';
 
   const clients=document.getElementById('clientRows');
-  if(clients)clients.innerHTML=state.clients.slice(0,10).map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.city||'')}</td><td>${pill(c.status==='active'?'Actif':c.status)}</td></tr>`).join('')||'<tr><td colspan="3" class="empty">Aucun client réel enregistré</td></tr>';
+  if(clients){
+    const head=clients.closest('table')?.querySelector('thead tr');
+    if(head&&head.cells.length===3)head.insertAdjacentHTML('beforeend','<th>Contrat</th>');
+    clients.innerHTML=state.clients.slice(0,10).map(c=>`<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.city||'')}</td><td>${pill(c.status==='active'?'Actif':c.status)}</td><td><button class="mini" onclick="createContractUploadLink('organization','${esc(c.id)}')">Créer un lien</button></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun client réel enregistré</td></tr>';
+  }
+  renderContractDocuments();
 
   const db=document.getElementById('dossierRows');
   if(db)db.innerHTML=state.dossiers.slice(0,10).map(d=>`<tr class="clickable-row" data-href="/dossier?id=${encodeURIComponent(d.id)}" role="link" tabindex="0"><td><b>${esc(d.reference||d.id)}</b></td><td>${esc(d.client)}</td><td>${pill(d.status)}</td><td>${euro(d.amount)}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun dossier réel enregistré</td></tr>';
@@ -157,6 +163,36 @@ function renderAdmin(){
 }
 
 const laneOrder=['Nouveau','Contacté','À relancer','Intéressé','Proposition envoyée','Client'];
+window.createContractUploadLink=async function(kind,id){
+  const body=kind==='organization'?{action:'create_upload_link',organizationId:id}:{action:'create_upload_link',prospectId:id};
+  try{
+    const response=await fetch('/api/contracts',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.error||'LINK_CREATE_FAILED');
+    const url=new URL('/depot-contrat',location.origin);
+    url.searchParams.set('token',data.token);
+    try{await navigator.clipboard.writeText(url.href);toast('Lien sécurisé copié. Collez-le dans votre e-mail au client.');}
+    catch{window.prompt('Copiez ce lien et envoyez-le avec le contrat PDF :',url.href);}
+  }catch(e){toast('Création du lien impossible : '+e.message);}
+};
+
+function renderContractDocuments(){
+  const clientCard=document.getElementById('clients');
+  if(!clientCard)return;
+  let panel=document.getElementById('contractDocumentsPanel');
+  if(!panel){
+    panel=document.createElement('article');
+    panel.id='contractDocumentsPanel';
+    panel.className='premium-card';
+    panel.innerHTML='<div class="panel-head"><div><span class="eyebrow">CONTRATS SIGNÉS</span><h2>Documents reçus</h2></div><button class="btn btn-secondary btn-small" type="button" onclick="refreshRealProspects()">Actualiser</button></div><div class="table-wrap"><table class="table premium-table"><thead><tr><th>Client / prospect</th><th>Fichier</th><th>Reçu le</th><th></th></tr></thead><tbody id="contractDocumentRows"></tbody></table></div><p class="muted">Les PDF déposés via leur lien sécurisé apparaissent ici.</p>';
+    clientCard.insertAdjacentElement('afterend',panel);
+  }
+  const rows=document.getElementById('contractDocumentRows');
+  if(!rows)return;
+  const fmt=value=>value?new Intl.DateTimeFormat('fr-FR',{dateStyle:'short',timeStyle:'short'}).format(new Date(value)):'—';
+  rows.innerHTML=state.contractDocuments.map(d=>`<tr><td><b>${esc(d.clientName)}</b></td><td>${esc(d.filename)}</td><td>${fmt(d.uploadedAt)}</td><td><a class="mini" href="/api/contracts?documentId=${encodeURIComponent(d.id)}">Télécharger</a></td></tr>`).join('')||'<tr><td colspan="4" class="empty">Aucun contrat signé reçu</td></tr>';
+}
+
 function renderOrchestrator(){
   const wrap=document.getElementById('pipeline');
   if(wrap){
@@ -223,8 +259,8 @@ function leadButtons(p){
     : `<button class="mini gold" onclick="enrichProspect('${p.id}',this)">Trouver l’email</button>`;
   if(p.status==='Contacté')return `<button class="mini gold" onclick="advanceProspect('${p.id}','Intéressé')">Réponse +</button><button class="mini" onclick="advanceProspect('${p.id}','À relancer')">Relancer</button>`;
   if(p.status==='À relancer')return `<button class="mini primary" onclick="advanceProspect('${p.id}','Intéressé')">Intéressé</button>`;
-  if(p.status==='Intéressé')return '<span class="pill p-wait">Proposition non connectée</span>';
-  if(p.status==='Proposition envoyée')return '<span class="pill p-wait">Signature non connectée</span>';
+  if(p.status==='Intéressé')return `<span class="pill p-wait">Proposition non connectée</span><button class="mini" onclick="createContractUploadLink('prospect','${p.id}')">Lien de dépôt</button>`;
+  if(p.status==='Proposition envoyée')return `<span class="pill p-wait">Signature manuelle</span><button class="mini" onclick="createContractUploadLink('prospect','${p.id}')">Lien de dépôt</button>`;
   return '';
 }
 
@@ -396,6 +432,11 @@ async function refreshRealProspects(){
       state.prospects=data.prospects;
       state.clients=Array.isArray(data.clients)?data.clients:[];
       state.dossiers=Array.isArray(data.dossiers)?data.dossiers:[];
+      try{
+        const cr=await fetch('/api/contracts',{cache:'no-store'});
+        const cd=cr.ok?await cr.json():{};
+        state.contractDocuments=Array.isArray(cd.documents)?cd.documents:[];
+      }catch{state.contractDocuments=[]}
       state.dashboard={...cloneBase().dashboard,...(data.summary||{})};
       state.automation={...cloneBase().automation,...(data.automation||{})};
       state.orchestrator.found=Number(data.summary?.prospects||data.prospects.length||0);
