@@ -484,7 +484,7 @@ if('serviceWorker' in navigator){
   });
   window.addEventListener('load',async()=>{
     try{
-      const reg=await navigator.serviceWorker.register('/sw.js?v=20260929-navstrip1',{scope:'/'});
+      const reg=await navigator.serviceWorker.register('/sw.js?v=20261004-contractlinks1',{scope:'/'});
       await reg.update();
     }catch{}
   });
