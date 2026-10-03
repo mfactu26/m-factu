@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#10192b">
+  <title>Déposer un contrat signé — M FactU</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+  <style>
+    body{min-height:100vh;background:#10192b;color:#edf4ff;display:grid;place-items:center;padding:20px}
+    .upload-card{width:min(100%,620px);background:#14233b;border:1px solid #2c4263;border-radius:24px;padding:clamp(24px,6vw,44px);box-shadow:0 24px 80px #0005}
+    .upload-brand{font-size:22px;letter-spacing:.15em;font-weight:800;color:#fff;margin-bottom:28px}
+    .upload-card h1{font-size:clamp(26px,5vw,36px);margin:0 0 12px}
+    .upload-card p{color:#b6c3d7;line-height:1.6}
+    .upload-card label{display:block;margin:24px 0 10px;font-weight:700}
+    .upload-card input[type=file]{width:100%;padding:14px;border:1px solid #435779;border-radius:12px;background:#10192b;color:#edf4ff}
+    .upload-button{width:100%;margin-top:20px;min-height:52px;border:0;border-radius:13px;background:linear-gradient(110deg,#3988ff,#735af6);color:#fff;font-weight:800;font-size:16px}
+    .upload-button:disabled{opacity:.55}
+    .upload-status{min-height:28px;margin-top:18px;font-weight:700}
+    .upload-status.error{color:#ffaaa4}.upload-status.success{color:#80e2bd}
+    .upload-privacy{font-size:13px;margin-top:24px;padding-top:18px;border-top:1px solid #2c4263}
+  </style>
+</head>
+<body>
+  <main class="upload-card">
+    <div class="upload-brand">M FACTU</div>
+    <h1>Déposer votre contrat signé</h1>
+    <p>Ce lien permet de déposer le contrat pour <strong id="clientName">votre entreprise</strong>. Signez le PDF dans votre lecteur PDF, puis joignez ici le fichier signé. Aucun compte n’est nécessaire.</p>
+    <form id="contractUploadForm" hidden>
+      <label for="signedPdf">Contrat signé au format PDF (3 Mo maximum)</label>
+      <input id="signedPdf" type="file" accept=".pdf,application/pdf" required>
+      <button id="uploadSubmit" class="upload-button" type="submit">Envoyer le contrat signé</button>
+    </form>
+    <div id="uploadStatus" class="upload-status" role="status" aria-live="polite"></div>
+    <p class="upload-privacy">Le lien est à usage unique et expire après 21 jours. Déposez uniquement le contrat commercial signé, sans document médical ni dossier patient.</p>
+  </main>
+  <script src="/assets/contract-upload.js"></script>
+</body>
+</html>
