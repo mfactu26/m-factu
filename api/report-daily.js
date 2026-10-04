@@ -53,7 +53,7 @@ module.exports=async function handler(req,res){
     enrichmentNoEmail:Number(enrichmentOutcomes[0]?.no_email||0),
     enrichmentFailures:Number(enrichmentOutcomes[0]?.failures||0),
     qualified:counts.prospect_qualified||0,
-    contacted:counts.contact_sent||0,replies:counts.reply_received||0,hot:counts.prospect_interested||0,
+    contacted:counts.contact_sent||0,followups:counts.contact_followup_sent||0,replies:counts.reply_received||0,hot:counts.prospect_interested||0,
     proposals:counts.proposal_sent||0,signed:counts.contract_signed||0,clients:Number(clients[0]?.count||0)
   };
   const text=`M FactU — Rapport commercial quotidien
@@ -65,6 +65,7 @@ Sans email public trouvé : ${summary.enrichmentNoEmail}
 Erreurs de recherche : ${summary.enrichmentFailures}
 Prospects qualifiés : ${summary.qualified}
 Contacts envoyés : ${summary.contacted}
+Relances envoyées : ${summary.followups}
 Réponses reçues : ${summary.replies}
 Prospects intéressés : ${summary.hot}
 Propositions envoyées : ${summary.proposals}

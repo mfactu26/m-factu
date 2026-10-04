@@ -29,7 +29,7 @@ async function contactReadyProspects(sql,limit=DAILY_OUTREACH_CAP){
   const countRows=await sql`
     select count(*)::int as sent_today
     from mfactu_commercial_events
-    where event_type='contact_sent'
+    where event_type in ('contact_sent','contact_followup_sent')
       and created_at >= (date_trunc('day', now() at time zone 'Europe/Paris') at time zone 'Europe/Paris')
       and created_at < ((date_trunc('day', now() at time zone 'Europe/Paris') + interval '1 day') at time zone 'Europe/Paris')
   `;
@@ -96,6 +96,73 @@ ${unsubscribe}`;
   return {contacted,failed,sentToday:sentToday+contacted,dailyCap:DAILY_OUTREACH_CAP,remaining:Math.max(0,remaining-contacted)};
 }
 
+
+async function followupDueProspects(sql,limit=DAILY_OUTREACH_CAP){
+  if(!process.env.RESEND_API_KEY||!process.env.AUTH_SECRET) return {sent:0,failed:0,skipped:"EMAIL_NOT_CONFIGURED",dailyCap:DAILY_OUTREACH_CAP};
+  const countRows=await sql`
+    select count(*)::int as sent_today
+    from mfactu_commercial_events
+    where event_type in ('contact_sent','contact_followup_sent')
+      and created_at >= (date_trunc('day', now() at time zone 'Europe/Paris') at time zone 'Europe/Paris')
+      and created_at < ((date_trunc('day', now() at time zone 'Europe/Paris') + interval '1 day') at time zone 'Europe/Paris')
+  `;
+  const sentToday=Number(countRows[0]?.sent_today||0);
+  const remaining=Math.max(0,DAILY_OUTREACH_CAP-sentToday);
+  const allowed=Math.max(0,Math.min(Number(limit)||DAILY_OUTREACH_CAP,remaining));
+  if(!allowed) return {sent:0,failed:0,skipped:"DAILY_CAP_REACHED",sentToday,dailyCap:DAILY_OUTREACH_CAP,remaining:0};
+  const rows=await sql`
+    select p.id,p.company_name,p.city,p.email
+    from mfactu_prospects p
+    join lateral (
+      select e.created_at from mfactu_commercial_events e
+      where e.prospect_id=p.id and e.event_type='contact_sent'
+      order by e.created_at asc limit 1
+    ) first_contact on true
+    where p.status='contacted' and p.opt_out=false
+      and p.email is not null and length(trim(p.email))>3
+      and first_contact.created_at <= now() - interval '5 days'
+      and not exists (
+        select 1 from mfactu_commercial_events e
+        where e.prospect_id=p.id and e.event_type in ('reply_received','contact_followup_sent')
+      )
+    order by first_contact.created_at asc limit ${allowed}
+  `;
+  let sentCount=0,failed=0;
+  const appUrl=process.env.APP_URL||"https://m-factu.vercel.app";
+  for(const p of rows){
+    try{
+      const unsubscribe=appUrl+"/api/prospect-optout?token="+encodeURIComponent(optoutToken(p));
+      const subject="Petit suivi — facturation des taxis conventionnés";
+      const text=`Bonjour,
+
+Je me permets de revenir une seule fois vers vous au sujet de notre précédent message. M FactU accompagne les taxis conventionnés dans le suivi de leur facturation, à 3,5 % HT du chiffre d’affaires télétransmis.
+
+Si ce sujet ne vous concerne pas, vous pouvez simplement ignorer ce message. Pour ne plus recevoir de message de M FactU :
+${unsubscribe}
+
+M FactU
+07 87 08 51 31`;
+      const sent=await sendEmail({
+        to:p.email,from:process.env.PROSPECT_EMAIL_FROM||"M FactU <mfactu@glowbiz.fr>",
+        replyTo:[process.env.REPORT_EMAIL||process.env.OWNER_EMAIL].filter(Boolean),
+        subject,text,headers:{"List-Unsubscribe":"<"+unsubscribe+">","List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
+      });
+      await sql`
+        insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+        values('contact_followup_sent',${p.id},${JSON.stringify({messageId:sent.id||null,mode:"orchestrator"})}::jsonb)
+      `;
+      sentCount++;
+    }catch(error){
+      failed++;
+      await sql`
+        insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+        values('contact_followup_failed',${p.id},${JSON.stringify({message:String(error&&error.message||"EMAIL_SEND_FAILED").slice(0,200),mode:"orchestrator"})}::jsonb)
+      `;
+    }
+  }
+  return {sent:sentCount,failed,sentToday:sentToday+sentCount,dailyCap:DAILY_OUTREACH_CAP,remaining:Math.max(0,remaining-sentCount)};
+}
+
 module.exports=async function handler(req,res){
   if(!["GET","POST"].includes(req.method)) return res.status(405).json({ok:false,error:"METHOD_NOT_ALLOWED"});
   const mode=accessMode(req);
@@ -157,16 +224,21 @@ module.exports=async function handler(req,res){
   }
   const enrichment=await enrichPublicContacts(sql,{limit:12});
   const remainingAfterBacklog=Math.max(0,DAILY_OUTREACH_CAP-Number(backlogOutreach.contacted||0));
-  const freshOutreach=remainingAfterBacklog>0
-    ? await contactReadyProspects(sql,remainingAfterBacklog)
-    : {contacted:0,failed:0,skipped:"DAILY_CAP_REACHED",sentToday:backlogOutreach.sentToday,dailyCap:DAILY_OUTREACH_CAP,remaining:0};
+  const followups=remainingAfterBacklog>0
+    ? await followupDueProspects(sql,remainingAfterBacklog)
+    : {sent:0,failed:0,skipped:"DAILY_CAP_REACHED",sentToday:backlogOutreach.sentToday,dailyCap:DAILY_OUTREACH_CAP,remaining:0};
+  const remainingAfterFollowups=Math.max(0,remainingAfterBacklog-Number(followups.sent||0));
+  const freshOutreach=remainingAfterFollowups>0
+    ? await contactReadyProspects(sql,remainingAfterFollowups)
+    : {contacted:0,failed:0,skipped:"DAILY_CAP_REACHED",sentToday:followups.sentToday??backlogOutreach.sentToday,dailyCap:DAILY_OUTREACH_CAP,remaining:0};
   const outreach={
     contacted:Number(backlogOutreach.contacted||0)+Number(freshOutreach.contacted||0),
-    failed:Number(backlogOutreach.failed||0)+Number(freshOutreach.failed||0),
-    skipped:freshOutreach.skipped||backlogOutreach.skipped||null,
+    followups:Number(followups.sent||0),
+    failed:Number(backlogOutreach.failed||0)+Number(followups.failed||0)+Number(freshOutreach.failed||0),
+    skipped:freshOutreach.skipped||followups.skipped||backlogOutreach.skipped||null,
     dailyCap:DAILY_OUTREACH_CAP,
-    sentToday:Number(freshOutreach.sentToday ?? backlogOutreach.sentToday ?? 0),
-    remaining:Number(freshOutreach.remaining ?? backlogOutreach.remaining ?? 0)
+    sentToday:Number(freshOutreach.sentToday ?? followups.sentToday ?? backlogOutreach.sentToday ?? 0),
+    remaining:Number(freshOutreach.remaining ?? followups.remaining ?? backlogOutreach.remaining ?? 0)
   };
 
   if(mode==="cron"){
@@ -180,9 +252,12 @@ module.exports=async function handler(req,res){
         totalPages,
         nextPage,
         backlogContacted:backlogOutreach.contacted||0,
+        followupsSent:followups.sent||0,
+        followupsFailed:followups.failed||0,
         enrichment,
         freshContacted:freshOutreach.contacted||0,
         contacted:outreach.contacted||0,
+        followups:outreach.followups||0,
         failed:outreach.failed||0
       })}::jsonb)
     `;
@@ -196,9 +271,11 @@ module.exports=async function handler(req,res){
     totalPages,
     nextPage,
     backlogOutreach,
+    followups,
     enrichment,
     freshOutreach,
     contacted:outreach.contacted||0,
+    followupsSent:outreach.followups||0,
     contactFailed:outreach.failed||0,
     contactSkipped:outreach.skipped||null,
     dailyOutreachCap:outreach.dailyCap||DAILY_OUTREACH_CAP,
