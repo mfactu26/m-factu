@@ -51,7 +51,7 @@ ${unsubscribe}`;
     replyTo:[process.env.REPORT_EMAIL||process.env.OWNER_EMAIL].filter(Boolean),
     subject,
     text,
-    headers:{"List-Unsubscribe":"<"+unsubscribe+">"}
+    headers:{"List-Unsubscribe":"<"+unsubscribe+">","List-Unsubscribe-Post":"List-Unsubscribe=One-Click"}
   });
   const stamp=new Date().toISOString();
   await sql`
