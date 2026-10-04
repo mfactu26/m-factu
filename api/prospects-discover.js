@@ -1,6 +1,7 @@
 const { getSession } = require("../lib/auth.cjs");
 const { getSql } = require("../lib/db.cjs");
 const { clampInt, searchTaxiCompanies, persistProspects, enrichPublicContacts, enrichProspectById, mapProspectForUi } = require("../lib/prospecting.cjs");
+const { sendEmail } = require("../lib/email.cjs");
 
 module.exports = async function handler(req,res){
   if(!["GET","POST"].includes(req.method)) return res.status(405).json({ok:false,error:"METHOD_NOT_ALLOWED"});
@@ -31,6 +32,29 @@ module.exports = async function handler(req,res){
         prospectId=inserted[0].id;
       }
       await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata) values('prospect_interested',${prospectId},${JSON.stringify({source:"website-contact",turnover,gateway})}::jsonb)`;
+      if(process.env.REPORT_EMAIL&&process.env.RESEND_API_KEY&&process.env.EMAIL_FROM){
+        try{
+          await sendEmail({
+            to:process.env.REPORT_EMAIL,
+            replyTo:[email],
+            subject:"M FactU — Nouvelle demande",
+            text:`Nouvelle demande reçue depuis le site M FactU.
+
+Entreprise : ${company}
+Contact : ${name}
+Email : ${email}
+Téléphone : ${phone}
+
+Connectez-vous à l’espace propriétaire pour traiter la demande.`
+          });
+          await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+            values('prospect_owner_alert_sent',${prospectId},${JSON.stringify({source:"website-contact"})}::jsonb)`;
+        }catch(alertError){
+          console.error("M FactU prospect owner alert failed",alertError);
+          await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+            values('prospect_owner_alert_failed',${prospectId},${JSON.stringify({source:"website-contact"})}::jsonb)`;
+        }
+      }
       res.setHeader("Cache-Control","no-store");
       return res.status(201).json({ok:true});
     }catch(error){
@@ -151,6 +175,8 @@ module.exports = async function handler(req,res){
         reportEmailConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.REPORT_EMAIL&&process.env.EMAIL_FROM),
         outreachConfigured:Boolean(process.env.RESEND_API_KEY&&process.env.AUTH_SECRET),
         signingConfigured:Boolean(process.env.SIGNING_PROVIDER_KEY),
+        contractUploadAlertConfigured:Boolean(process.env.REPORT_EMAIL&&process.env.RESEND_API_KEY&&process.env.EMAIL_FROM),
+        ownerAlertConfigured:Boolean(process.env.REPORT_EMAIL&&process.env.RESEND_API_KEY&&process.env.EMAIL_FROM),
         healthUploadsEnabled:false
       },
       dossiers:dossierRows.map(row=>({
