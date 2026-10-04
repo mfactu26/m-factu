@@ -257,8 +257,8 @@ function renderOrchestrator(){
   setText('ownerAutomationStatus',a.lastRunAt?'Auto : '+fmt(a.lastRunAt):'Auto non exécuté');
   setText('dailyReportState',a.reportEmailConfigured?'Configuré':'Non configuré');
   setText('lastReportInfo',a.lastReportAt?'Dernier envoi : '+fmt(a.lastReportAt):'Aucun rapport envoyé');
-  setText('signedAlertState','Non connecté');
-  setText('ownerAlertState','Non connecté');
+  setText('signedAlertState',a.contractUploadAlertConfigured?'Configuré':'À configurer');
+  setText('ownerAlertState',a.ownerAlertConfigured?'Configuré':'À configurer');
 
   const stepState={
     stepSearch:'Actif',
@@ -266,7 +266,7 @@ function renderOrchestrator(){
     stepContact:a.outreachConfigured?'Actif':'Non configuré',
     stepFollowup:'Manuel',
     stepProposal:'Non connecté',
-    stepContract:a.signingConfigured?'Connecté':'Non connecté',
+    stepContract:a.contractUploadAlertConfigured?'Dépôt PDF actif':'À configurer',
     stepClient:'Après contrat réel'
   };
   Object.entries(stepState).forEach(([id,value])=>setText(id,value));
@@ -491,6 +491,8 @@ async function refreshIntegrationStatus(){
     const report=document.getElementById('reportStatus');
     const ready=Boolean(data.emailConfigured);
     [badge,report].forEach(el=>{if(el){el.textContent=ready?'Connecté':'À connecter';el.classList.toggle('ready',ready)}});
+    setText('signedAlertState',data.contractUploadAlertConfigured?'Configuré':'À configurer');
+    setText('ownerAlertState',data.ownerAlertConfigured?'Configuré':'À configurer');
   }catch{}
 }
 
