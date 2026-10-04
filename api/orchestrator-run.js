@@ -9,8 +9,6 @@ function accessMode(req){
   if(s&&s.role==="owner") return "owner";
   const auth=String(req.headers.authorization||"");
   if(process.env.CRON_SECRET&&auth==="Bearer "+process.env.CRON_SECRET) return "cron";
-  const ua=String(req.headers["user-agent"]||"");
-  if(!process.env.CRON_SECRET&&/^vercel-cron\/1\.0/i.test(ua)) return "cron";
   return null;
 }
 
