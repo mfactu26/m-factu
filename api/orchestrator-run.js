@@ -165,6 +165,10 @@ module.exports=async function handler(req,res){
   if(!["GET","POST"].includes(req.method)) return res.status(405).json({ok:false,error:"METHOD_NOT_ALLOWED"});
   const mode=accessMode(req);
   if(!mode) return res.status(403).json({ok:false,error:"OWNER_OR_CRON_ONLY"});
+  const cronSchedule=req.headers["x-vercel-cron-schedule"];
+  if(mode==="cron"&&cronSchedule&&new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Paris",hour:"2-digit",hourCycle:"h23"}).format(new Date())!=="09"){
+    return res.status(200).json({ok:true,skipped:true,reason:"OUTSIDE_PARIS_09"});
+  }
   const sql=getSql();
   if(!sql) return res.status(503).json({ok:false,error:"DATABASE_NOT_CONFIGURED"});
 
