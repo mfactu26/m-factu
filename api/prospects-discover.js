@@ -51,8 +51,12 @@ Connectez-vous à l’espace propriétaire pour traiter la demande.`
             values('prospect_owner_alert_sent',${prospectId},${JSON.stringify({source:"website-contact"})}::jsonb)`;
         }catch(alertError){
           console.error("M FactU prospect owner alert failed",alertError);
-          await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
-            values('prospect_owner_alert_failed',${prospectId},${JSON.stringify({source:"website-contact"})}::jsonb)`;
+          try {
+            await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+              values('prospect_owner_alert_failed',${prospectId},${JSON.stringify({source:"website-contact"})}::jsonb)`;
+          } catch (eventError) {
+            console.error("M FactU prospect alert failure logging failed",eventError);
+          }
         }
       }
       res.setHeader("Cache-Control","no-store");
