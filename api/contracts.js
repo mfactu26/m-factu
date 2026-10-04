@@ -83,11 +83,15 @@ module.exports = async function handler(req, res) {
       `;
       if (!rows[0]) return res.status(410).json({ ok: false, error: "LINK_EXPIRED_OR_USED" });
       const uploadId = rows[0].id;
-      await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
-        values('contract_upload_received',${rows[0].prospect_id},${JSON.stringify({
-          organizationId: rows[0].organization_id || null,
-          uploadId
-        })}::jsonb)`;
+      try {
+        await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+          values('contract_upload_received',${rows[0].prospect_id},${JSON.stringify({
+            organizationId: rows[0].organization_id || null,
+            uploadId
+          })}::jsonb)`;
+      } catch (eventError) {
+        console.error("M FactU contract upload event logging failed", eventError);
+      }
       if (process.env.REPORT_EMAIL && process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
         try {
           await sendEmail({
@@ -95,12 +99,20 @@ module.exports = async function handler(req, res) {
             subject: "M FactU — Contrat signé reçu",
             text: "Un contrat signé vient d’être déposé via le lien M FactU. Consultez le dossier dans votre espace propriétaire."
           });
-          await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
-            values('contract_upload_alert_sent',${rows[0].prospect_id},${JSON.stringify({uploadId})}::jsonb)`;
+          try {
+            await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+              values('contract_upload_alert_sent',${rows[0].prospect_id},${JSON.stringify({uploadId})}::jsonb)`;
+          } catch (eventError) {
+            console.error("M FactU contract upload alert event logging failed", eventError);
+          }
         } catch (alertError) {
           console.error("M FactU contract upload alert failed", alertError);
-          await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
-            values('contract_upload_alert_failed',${rows[0].prospect_id},${JSON.stringify({uploadId})}::jsonb)`;
+          try {
+            await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+              values('contract_upload_alert_failed',${rows[0].prospect_id},${JSON.stringify({uploadId})}::jsonb)`;
+          } catch (eventError) {
+            console.error("M FactU contract upload alert failure logging failed", eventError);
+          }
         }
       }
       return res.status(201).json({ ok: true });
