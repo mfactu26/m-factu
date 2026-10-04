@@ -38,9 +38,21 @@ module.exports=async function handler(req,res){
     group by event_type
   `;
   const counts=Object.fromEntries(rows.map(r=>[r.event_type,Number(r.count)]));
+  const enrichmentOutcomes=await sql`
+    select
+      count(*) filter (where metadata->>'outcome'='no_public_email')::int as no_email,
+      count(*) filter (where metadata->>'outcome' in ('lookup_failed','update_failed'))::int as failures
+    from mfactu_commercial_events
+    where event_type='prospect_enrichment_attempted'
+      and created_at>=${start.toISOString()} and created_at<${end.toISOString()}
+  `;
   const clients=await sql`select count(*)::int as count from mfactu_organizations where status='active'`;
   const summary={
-    searched:counts.prospect_searched||0,found:counts.prospect_found||0,enriched:counts.prospect_enriched||0,qualified:counts.prospect_qualified||0,
+    searched:counts.prospect_searched||0,found:counts.prospect_found||0,enriched:counts.prospect_enriched||0,
+    enrichmentAttempts:counts.prospect_enrichment_attempted||0,
+    enrichmentNoEmail:Number(enrichmentOutcomes[0]?.no_email||0),
+    enrichmentFailures:Number(enrichmentOutcomes[0]?.failures||0),
+    qualified:counts.prospect_qualified||0,
     contacted:counts.contact_sent||0,replies:counts.reply_received||0,hot:counts.prospect_interested||0,
     proposals:counts.proposal_sent||0,signed:counts.contract_signed||0,clients:Number(clients[0]?.count||0)
   };
@@ -48,6 +60,9 @@ module.exports=async function handler(req,res){
 
 Prospects recherchés : ${summary.searched}
 Prospects trouvés : ${summary.found}
+Recherches d’emails publics : ${summary.enrichmentAttempts}
+Sans email public trouvé : ${summary.enrichmentNoEmail}
+Erreurs de recherche : ${summary.enrichmentFailures}
 Prospects qualifiés : ${summary.qualified}
 Contacts envoyés : ${summary.contacted}
 Réponses reçues : ${summary.replies}
