@@ -79,9 +79,30 @@ module.exports = async function handler(req, res) {
         select prospect_id, organization_id, id, ${filename}, 'application/pdf',
           ${bytes.length}, ${sha256(bytes)}, decode(${base64}, 'base64')
         from accepted
-        returning id
+        returning id, prospect_id, organization_id
       `;
       if (!rows[0]) return res.status(410).json({ ok: false, error: "LINK_EXPIRED_OR_USED" });
+      const uploadId = rows[0].id;
+      await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+        values('contract_upload_received',${rows[0].prospect_id},${JSON.stringify({
+          organizationId: rows[0].organization_id || null,
+          uploadId
+        })}::jsonb)`;
+      if (process.env.REPORT_EMAIL && process.env.RESEND_API_KEY && process.env.EMAIL_FROM) {
+        try {
+          await sendEmail({
+            to: process.env.REPORT_EMAIL,
+            subject: "M FactU — Contrat signé reçu",
+            text: "Un contrat signé vient d’être déposé via le lien M FactU. Consultez le dossier dans votre espace propriétaire."
+          });
+          await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+            values('contract_upload_alert_sent',${rows[0].prospect_id},${JSON.stringify({uploadId})}::jsonb)`;
+        } catch (alertError) {
+          console.error("M FactU contract upload alert failed", alertError);
+          await sql`insert into mfactu_commercial_events(event_type,prospect_id,metadata)
+            values('contract_upload_alert_failed',${rows[0].prospect_id},${JSON.stringify({uploadId})}::jsonb)`;
+        }
+      }
       return res.status(201).json({ ok: true });
     } catch (error) {
       console.error("M FactU contract upload failed", error);
