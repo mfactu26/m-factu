@@ -412,3 +412,21 @@ body.impact-site{overflow-x:hidden}.impact-site main{overflow-x:clip}.impact-sit
   -webkit-text-fill-color:#06213f!important;
   opacity:1!important;
 }
+
+
+/* Public site keyboard focus: visible, high-contrast outlines for every control. */
+.impact-site :is(a, button, input, select, textarea):focus-visible {
+  outline: 3px solid #0b78c9;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 5px rgba(19, 184, 199, .2);
+}
+@media (prefers-reduced-motion: reduce) {
+  .impact-site *,
+  .impact-site *::before,
+  .impact-site *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
