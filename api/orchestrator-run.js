@@ -224,7 +224,7 @@ module.exports=async function handler(req,res){
       from generate_series(1,${found.length})
     `;
   }
-  const enrichment=await enrichPublicContacts(sql,{limit:12});
+  const enrichment=await enrichPublicContacts(sql,{limit:50});
   const remainingAfterBacklog=Math.max(0,DAILY_OUTREACH_CAP-Number(backlogOutreach.contacted||0));
   const followups=remainingAfterBacklog>0
     ? await followupDueProspects(sql,remainingAfterBacklog)
